@@ -397,9 +397,20 @@ export default function App() {
 
                           {/* Delete item */}
                           <button
-                            onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (item.is_staple) {
+                                if (window.confirm(`Delete staple item "${item.name}"? This can't be undone.`)) {
+                                  deleteItem(item.id);
+                                  showToast(`Deleted "${item.name}"`);
+                                }
+                              } else {
+                                deleteItem(item.id);
+                                showToast(`Deleted "${item.name}"`);
+                              }
+                            }}
                             style={styles.deleteBtn}
-                          >×</button>
+                          >🗑️</button>
                         </div>
                       );
                     })}
@@ -677,8 +688,9 @@ const styles = {
     transition: "color 0.2s",
   },
   deleteBtn: {
-    background: "none", border: "none", color: "#ccc",
-    fontSize: 18, cursor: "pointer", padding: "0 0 0 2px", lineHeight: 1,
+    background: "none", border: "none",
+    fontSize: 14, cursor: "pointer", padding: "4px 4px", lineHeight: 1,
+    opacity: 0.5, transition: "opacity 0.2s",
   },
   addRow: {
     display: "flex", padding: "8px 14px", gap: 6, borderTop: "1px solid #f2f1ea",
