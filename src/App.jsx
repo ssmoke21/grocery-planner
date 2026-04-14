@@ -387,11 +387,11 @@ export default function App() {
 
                           {/* Staple toggle */}
                           <button
-                            onClick={(e) => { e.stopPropagation(); updateItem(item.id, { is_staple: !item.is_staple }); }}
+                            onClick={(e) => { e.stopPropagation(); updateItem(item.id, { is_staple: !item.is_staple }); showToast(item.is_staple ? "Removed from staples" : "Saved as staple"); }}
                             title={item.is_staple ? "Remove from staples" : "Make a staple"}
                             style={{
                               ...styles.stapleBtn,
-                              color: item.is_staple ? "#D4A017" : "#ccc",
+                              opacity: item.is_staple ? 1 : 0.3,
                             }}
                           >📌</button>
 
