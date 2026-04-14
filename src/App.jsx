@@ -385,13 +385,21 @@ export default function App() {
                             }}>{FREQ_LABEL[item.freq]}</span>
                           )}
 
-                          {/* Delete non-staple */}
-                          {!item.is_staple && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }}
-                              style={styles.deleteBtn}
-                            >×</button>
-                          )}
+                          {/* Staple toggle */}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); updateItem(item.id, { is_staple: !item.is_staple }); }}
+                            title={item.is_staple ? "Remove from staples" : "Make a staple"}
+                            style={{
+                              ...styles.stapleBtn,
+                              color: item.is_staple ? "#D4A017" : "#ccc",
+                            }}
+                          >📌</button>
+
+                          {/* Delete item */}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }}
+                            style={styles.deleteBtn}
+                          >×</button>
                         </div>
                       );
                     })}
@@ -663,9 +671,14 @@ const styles = {
     color: "#555", cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
     fontWeight: 500, whiteSpace: "nowrap",
   },
+  stapleBtn: {
+    background: "none", border: "none",
+    fontSize: 14, cursor: "pointer", padding: "0 4px", lineHeight: 1,
+    transition: "color 0.2s",
+  },
   deleteBtn: {
     background: "none", border: "none", color: "#ccc",
-    fontSize: 18, cursor: "pointer", padding: "0 0 0 6px", lineHeight: 1,
+    fontSize: 18, cursor: "pointer", padding: "0 0 0 2px", lineHeight: 1,
   },
   addRow: {
     display: "flex", padding: "8px 14px", gap: 6, borderTop: "1px solid #f2f1ea",
