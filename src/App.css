@@ -1,0 +1,120 @@
+/* ── Animations ─────────────────────────────────────────── */
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.95); }
+}
+
+@keyframes bounceIn {
+  0%   { opacity: 0; transform: scale(0.82); }
+  60%  { opacity: 1; transform: scale(1.04); }
+  100% {             transform: scale(1); }
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.93) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── Applied classes ────────────────────────────────────── */
+
+.loading-icon {
+  animation: pulse 1.6s ease-in-out infinite;
+  display: inline-block;
+}
+
+.toast-popup {
+  animation: slideUp 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.celebration-card {
+  animation: bounceIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.section-card {
+  animation: fadeSlideIn 0.18s ease-out;
+}
+
+.overlay-anim {
+  animation: overlayIn 0.18s ease-out;
+}
+
+.modal-anim {
+  animation: modalIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Hover / tap states ─────────────────────────────────── */
+
+.item-row {
+  transition: background 0.15s ease;
+}
+.item-row:active {
+  background: #edf5e4 !important;
+}
+
+.item-row-shop {
+  transition: background 0.15s ease;
+  cursor: pointer;
+}
+.item-row-shop:active {
+  background: #efefea !important;
+}
+
+.primary-btn {
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.primary-btn:active {
+  filter: brightness(0.92);
+  transform: scale(0.98);
+}
+
+.secondary-btn {
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.secondary-btn:active {
+  transform: scale(0.97);
+}
+
+.staple-btn {
+  transition: opacity 0.2s ease, transform 0.15s ease !important;
+}
+.staple-btn:active {
+  transform: scale(1.25) !important;
+}
+
+.delete-btn {
+  transition: opacity 0.2s ease, transform 0.15s ease !important;
+}
+.delete-btn:active {
+  opacity: 1 !important;
+  transform: scale(1.15);
+}
+
+.section-header-btn {
+  transition: opacity 0.15s ease;
+}
+.section-header-btn:active {
+  opacity: 0.7;
+}
+
+.add-trigger-btn {
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.add-trigger-btn:active {
+  background: #f0f7e8 !important;
+}
