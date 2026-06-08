@@ -1,5 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { sbFetch } from "./supabase.js";
+import { useState, useEffect, useRef } from "react";
+import { db } from "./firebase.js";
+import {
+  collection, doc, addDoc, updateDoc, deleteDoc,
+  writeBatch, onSnapshot, serverTimestamp,
+} from "firebase/firestore";
 import "./App.css";
 
 const SECTION_ORDER = [
@@ -21,53 +25,74 @@ const FREQ_COLORS = {
 const FREQ_LABEL = { weekly: "weekly", most: "most wks", regular: "2-3 wks" };
 
 export default function App() {
-  const [items, setItems]           = useState([]);
-  const [mode, setMode]             = useState("plan");
-  const [loading, setLoading]       = useState(true);
-  const [collapsed, setCollapsed]   = useState({});
-  const [editQty, setEditQty]       = useState(null);
-  const [qtyInput, setQtyInput]     = useState("");
-  const [unitInput, setUnitInput]   = useState("");
-  const [addingTo, setAddingTo]     = useState(null);
-  const [newItem, setNewItem]       = useState("");
+  const [items, setItems]             = useState([]);
+  const [mode, setMode]               = useState("plan");
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState(null);
+  const [collapsed, setCollapsed]     = useState({});
+  const [editQty, setEditQty]         = useState(null);
+  const [qtyInput, setQtyInput]       = useState("");
+  const [unitInput, setUnitInput]     = useState("");
+  const [addingTo, setAddingTo]       = useState(null);
+  const [newItem, setNewItem]         = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
-  const [toast, setToast]           = useState(null);
-  const [error, setError]           = useState(null);
-  const pollRef = useRef(null);
+  const [toast, setToast]             = useState(null);
+
+  // Track when both listeners have fired at least once
+  const loadedRef = useRef({ items: false, state: false });
+  const checkLoaded = () => {
+    if (loadedRef.current.items && loadedRef.current.state) setLoading(false);
+  };
 
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2200);
   };
 
-  const loadData = useCallback(async () => {
-    try {
-      const [itemsData, stateData] = await Promise.all([
-        sbFetch("grocery_items?order=section.asc,sort_order.asc,created_at.asc"),
-        sbFetch("app_state?id=eq.1"),
-      ]);
-      setItems(itemsData || []);
-      if (stateData?.[0]) setMode(stateData[0].mode || "plan");
-      setError(null);
-    } catch (e) {
-      setError("Couldn't connect to the database. Check your connection and try again.");
-      console.error(e);
-    }
-    setLoading(false);
-  }, []);
-
+  // ── Real-time listeners (replaces polling) ──────────────────
   useEffect(() => {
-    loadData();
-    pollRef.current = setInterval(loadData, 4000);
-    return () => clearInterval(pollRef.current);
-  }, [loadData]);
+    const itemsUnsub = onSnapshot(
+      collection(db, "grocery_items"),
+      (snap) => {
+        setItems(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setError(null);
+        loadedRef.current.items = true;
+        checkLoaded();
+      },
+      (err) => {
+        console.error(err);
+        setError("Couldn't connect. Check your connection and try again.");
+        setLoading(false);
+      }
+    );
+
+    const stateUnsub = onSnapshot(
+      doc(db, "app_state", "main"),
+      (snap) => {
+        if (snap.exists()) setMode(snap.data().mode || "plan");
+        loadedRef.current.state = true;
+        checkLoaded();
+      },
+      (err) => {
+        console.error(err);
+        // Non-fatal — app still works without state doc
+        loadedRef.current.state = true;
+        checkLoaded();
+      }
+    );
+
+    return () => { itemsUnsub(); stateUnsub(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Data operations ─────────────────────────────────────────
 
   const updateItem = async (id, updates) => {
+    // Optimistic update for instant UI response
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...updates } : i)));
     try {
-      await sbFetch(`grocery_items?id=eq.${id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ ...updates, updated_at: new Date().toISOString() }),
+      await updateDoc(doc(db, "grocery_items", id), {
+        ...updates,
+        updatedAt: serverTimestamp(),
       });
     } catch (e) { console.error(e); }
   };
@@ -83,15 +108,15 @@ export default function App() {
   const addCustomItem = async (section) => {
     if (!newItem.trim()) return;
     try {
-      const result = await sbFetch("grocery_items", {
-        method: "POST",
-        body: JSON.stringify({
-          name: newItem.trim(), section,
-          is_selected: true, is_staple: false,
-          source: "manual", sort_order: 999,
-        }),
+      await addDoc(collection(db, "grocery_items"), {
+        name: newItem.trim(),
+        section,
+        is_selected: true,
+        is_staple: false,
+        source: "manual",
+        sort_order: 999,
+        createdAt: serverTimestamp(),
       });
-      if (result) setItems((prev) => [...prev, ...result]);
       showToast(`Added "${newItem.trim()}"`);
       setNewItem("");
       setAddingTo(null);
@@ -99,31 +124,30 @@ export default function App() {
   };
 
   const deleteItem = async (id) => {
+    // Optimistic removal
     setItems((prev) => prev.filter((i) => i.id !== id));
     try {
-      await sbFetch(`grocery_items?id=eq.${id}`, { method: "DELETE" });
+      await deleteDoc(doc(db, "grocery_items", id));
     } catch (e) { console.error(e); }
   };
 
   const startShopping = async () => {
-    const sel = items.filter((i) => i.is_selected && i.is_checked);
-    for (const item of sel) await updateItem(item.id, { is_checked: false });
-    setMode("shop");
     try {
-      await sbFetch("app_state?id=eq.1", {
-        method: "PATCH",
-        body: JSON.stringify({ mode: "shop", updated_at: new Date().toISOString() }),
+      const batch = writeBatch(db);
+      // Uncheck any already-checked items before entering shop mode
+      items.filter((i) => i.is_selected && i.is_checked).forEach((i) => {
+        batch.update(doc(db, "grocery_items", i.id), { is_checked: false });
       });
+      batch.set(doc(db, "app_state", "main"), { mode: "shop" }, { merge: true });
+      await batch.commit();
+      setMode("shop");
     } catch (e) { console.error(e); }
   };
 
   const backToPlan = async () => {
-    setMode("plan");
     try {
-      await sbFetch("app_state?id=eq.1", {
-        method: "PATCH",
-        body: JSON.stringify({ mode: "plan", updated_at: new Date().toISOString() }),
-      });
+      await updateDoc(doc(db, "app_state", "main"), { mode: "plan" });
+      setMode("plan");
     } catch (e) { console.error(e); }
   };
 
@@ -131,40 +155,53 @@ export default function App() {
     setShowConfirm(false);
     setLoading(true);
     try {
+      const batch = writeBatch(db);
+      const weekOf = new Date().toISOString().split("T")[0];
+
+      // Save shopping history
       const sel = items.filter((i) => i.is_selected);
-      if (sel.length > 0) {
-        const rows = sel.map((i) => ({
+      sel.forEach((i) => {
+        batch.set(doc(collection(db, "shopping_history")), {
           item_name: i.name, section: i.section,
           qty: i.qty || "", unit: i.unit || "",
-          week_of: new Date().toISOString().split("T")[0],
+          week_of: weekOf,
           was_purchased: !!i.is_checked,
-        }));
-        await sbFetch("shopping_history", { method: "POST", body: JSON.stringify(rows) });
-      }
-      await sbFetch("grocery_items?is_staple=eq.false", { method: "DELETE" });
-      await sbFetch("grocery_items?is_staple=eq.true", {
-        method: "PATCH",
-        body: JSON.stringify({ is_selected: false, is_checked: false }),
+        });
       });
-      await sbFetch("app_state?id=eq.1", {
-        method: "PATCH",
-        body: JSON.stringify({ mode: "plan", week_of: new Date().toISOString().split("T")[0] }),
+
+      // Delete non-staples, reset staples
+      items.forEach((i) => {
+        if (!i.is_staple) {
+          batch.delete(doc(db, "grocery_items", i.id));
+        } else {
+          batch.update(doc(db, "grocery_items", i.id), {
+            is_selected: false, is_checked: false,
+          });
+        }
       });
+
+      // Reset app state
+      batch.set(doc(db, "app_state", "main"), { mode: "plan", week_of: weekOf }, { merge: true });
+
+      await batch.commit();
       showToast("Fresh week started!");
-      await loadData();
     } catch (e) { console.error(e); }
     setLoading(false);
   };
 
-  // Build sections
+  // ── Build sections ──────────────────────────────────────────
   const sectionMap = {};
   items.forEach((item) => {
     if (!sectionMap[item.section]) sectionMap[item.section] = [];
     sectionMap[item.section].push(item);
   });
+
   const allSections = SECTION_ORDER
     .filter((s) => sectionMap[s]?.length > 0)
-    .map((s) => ({ section: s, items: sectionMap[s].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)) }));
+    .map((s) => ({
+      section: s,
+      items: sectionMap[s].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
+    }));
   Object.keys(sectionMap).forEach((s) => {
     if (!SECTION_ORDER.includes(s)) allSections.push({ section: s, items: sectionMap[s] });
   });
@@ -177,7 +214,7 @@ export default function App() {
 
   const isPlan = mode === "plan";
 
-  // ── LOADING ──────────────────────────────────────────────
+  // ── LOADING ─────────────────────────────────────────────────
   if (loading) {
     return (
       <div style={styles.loadingScreen}>
@@ -192,12 +229,12 @@ export default function App() {
       <div style={styles.loadingScreen}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
         <div style={{ color: "#c44", marginBottom: 16, fontSize: 14, textAlign: "center", maxWidth: 280 }}>{error}</div>
-        <button onClick={loadData} style={styles.retryBtn}>Try again</button>
+        <button onClick={() => window.location.reload()} style={styles.retryBtn}>Try again</button>
       </div>
     );
   }
 
-  // ── MAIN ─────────────────────────────────────────────────
+  // ── MAIN ────────────────────────────────────────────────────
   return (
     <div style={styles.container}>
 
@@ -208,9 +245,7 @@ export default function App() {
           ? "linear-gradient(150deg, #1e3a0f 0%, #3a6b1a 100%)"
           : "linear-gradient(150deg, #112233 0%, #1e4d7a 100%)",
       }}>
-        {/* Subtle texture overlay */}
         <div style={styles.headerNoise} />
-
         <div style={styles.headerTop}>
           <div>
             <div style={styles.headerEyebrow}>
@@ -248,7 +283,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Progress bar — shop mode */}
         {!isPlan && selectedItems.length > 0 && (
           <div style={styles.progressBg}>
             <div style={{
@@ -272,7 +306,6 @@ export default function App() {
           {allSections.map(({ section, items: sectionItems }) => {
             const isCollapsed = collapsed[section];
             const selCount    = sectionItems.filter((i) => i.is_selected).length;
-
             return (
               <div key={section} style={{ marginBottom: 6 }}>
                 <button
@@ -308,7 +341,6 @@ export default function App() {
                             background: isOn ? "#f2f9eb" : "white",
                           }}
                         >
-                          {/* Toggle switch */}
                           <button
                             onClick={() => toggleSelect(item)}
                             style={{
@@ -325,7 +357,6 @@ export default function App() {
                             }} />
                           </button>
 
-                          {/* Name */}
                           <span style={{
                             flex: 1, fontSize: 14,
                             color: isOn ? "#222" : "#aaa",
@@ -333,7 +364,6 @@ export default function App() {
                             letterSpacing: isOn ? "-0.01em" : "0",
                           }}>{item.name}</span>
 
-                          {/* Qty editor */}
                           {isOn && (
                             editQty === item.id ? (
                               <div style={styles.qtyEditor} onClick={(e) => e.stopPropagation()}>
@@ -370,7 +400,6 @@ export default function App() {
                             )
                           )}
 
-                          {/* Freq badge */}
                           {fc && !isOn && (
                             <span style={{
                               fontSize: 10, padding: "2px 7px", borderRadius: 10,
@@ -379,7 +408,6 @@ export default function App() {
                             }}>{FREQ_LABEL[item.freq]}</span>
                           )}
 
-                          {/* Staple pin */}
                           <button
                             className="staple-btn"
                             onClick={(e) => {
@@ -391,7 +419,6 @@ export default function App() {
                             style={{ ...styles.stapleBtn, opacity: item.is_staple ? 1 : 0.25 }}
                           >📌</button>
 
-                          {/* Delete */}
                           <button
                             className="delete-btn"
                             onClick={(e) => {
@@ -412,7 +439,6 @@ export default function App() {
                       );
                     })}
 
-                    {/* Add item row */}
                     {addingTo === section ? (
                       <div style={styles.addRow}>
                         <input
@@ -461,7 +487,6 @@ export default function App() {
                     </span>
                     {allDone && <span style={styles.donePill}>✓ done</span>}
                   </div>
-
                   <div style={{
                     ...styles.card,
                     opacity: allDone ? 0.45 : 1,
@@ -481,7 +506,6 @@ export default function App() {
                             background: isDone ? "#f8f8f4" : "white",
                           }}
                         >
-                          {/* Checkbox */}
                           <div style={{
                             width: 26, height: 26, borderRadius: 8, flexShrink: 0,
                             border: isDone ? "2px solid #2E6EA6" : "2px solid #d8d7d0",
@@ -497,7 +521,6 @@ export default function App() {
                               </svg>
                             )}
                           </div>
-
                           <span style={{
                             flex: 1, fontSize: 16,
                             color: isDone ? "#ccc" : "#1a1a1a",
@@ -505,11 +528,9 @@ export default function App() {
                             fontWeight: isDone ? 400 : 500,
                             transition: "color 0.18s ease",
                           }}>{item.name}</span>
-
                           {(item.qty || item.unit) && (
                             <span style={{
-                              fontSize: 13,
-                              color: isDone ? "#ccc" : "#888",
+                              fontSize: 13, color: isDone ? "#ccc" : "#888",
                               fontWeight: 600, whiteSpace: "nowrap",
                             }}>{item.qty} {item.unit}</span>
                           )}
@@ -538,11 +559,9 @@ export default function App() {
       <div style={styles.bottomBar}>
         {isPlan ? (
           <>
-            <button
-              className="secondary-btn"
-              onClick={() => setShowConfirm(true)}
-              style={styles.secondaryBtn}
-            >New Week</button>
+            <button className="secondary-btn" onClick={() => setShowConfirm(true)} style={styles.secondaryBtn}>
+              New Week
+            </button>
             <button
               className="primary-btn"
               onClick={startShopping}
@@ -578,7 +597,7 @@ export default function App() {
         )}
       </div>
 
-      {/* ── NEW WEEK MODAL ── */}
+      {/* ── MODAL ── */}
       {showConfirm && (
         <div className="overlay-anim" style={styles.overlay} onClick={() => setShowConfirm(false)}>
           <div className="modal-anim" style={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -596,9 +615,7 @@ export default function App() {
       )}
 
       {/* ── TOAST ── */}
-      {toast && (
-        <div className="toast-popup" style={styles.toast}>{toast}</div>
-      )}
+      {toast && <div className="toast-popup" style={styles.toast}>{toast}</div>}
     </div>
   );
 }
@@ -607,93 +624,56 @@ const styles = {
   container: {
     fontFamily: "'DM Sans', sans-serif",
     maxWidth: 500, margin: "0 auto",
-    background: "#F7F6F1",
-    minHeight: "100vh",
-    paddingBottom: 96,
+    background: "#F7F6F1", minHeight: "100vh", paddingBottom: 96,
   },
   loadingScreen: {
     display: "flex", flexDirection: "column",
     justifyContent: "center", alignItems: "center",
-    height: "100vh", fontFamily: "'DM Sans', sans-serif",
-    background: "#F7F6F1",
+    height: "100vh", fontFamily: "'DM Sans', sans-serif", background: "#F7F6F1",
   },
-  loadingText: {
-    color: "#aaa", fontSize: 14, letterSpacing: "0.02em",
-  },
+  loadingText: { color: "#aaa", fontSize: 14, letterSpacing: "0.02em" },
   retryBtn: {
     padding: "11px 28px", borderRadius: 10, border: "none",
     background: "#2D5016", color: "white", fontSize: 14,
     cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600,
   },
-
-  // Header
   header: {
     padding: "28px 20px 20px", color: "white",
-    position: "sticky", top: 0, zIndex: 100,
-    overflow: "hidden",
+    position: "sticky", top: 0, zIndex: 100, overflow: "hidden",
   },
   headerNoise: {
     position: "absolute", inset: 0, pointerEvents: "none",
     backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E\")",
-    backgroundSize: "200px 200px",
-    opacity: 0.6,
+    backgroundSize: "200px 200px", opacity: 0.6,
   },
-  headerTop: {
-    display: "flex", justifyContent: "space-between",
-    alignItems: "flex-start", position: "relative",
-  },
-  headerEyebrow: {
-    fontSize: 10, fontWeight: 700, letterSpacing: "0.12em",
-    opacity: 0.6, marginBottom: 4, fontFamily: "'DM Sans', sans-serif",
-  },
+  headerTop: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative" },
+  headerEyebrow: { fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", opacity: 0.6, marginBottom: 4 },
   title: {
-    fontFamily: "'Fraunces', serif",
-    fontSize: 28, margin: 0, fontWeight: 500,
-    letterSpacing: "-0.01em", lineHeight: 1.1,
-    fontStyle: "italic",
+    fontFamily: "'Fraunces', serif", fontSize: 28, margin: 0,
+    fontWeight: 500, letterSpacing: "-0.01em", lineHeight: 1.1, fontStyle: "italic",
   },
-  subtitle: {
-    fontSize: 13, opacity: 0.75, marginTop: 6,
-    fontWeight: 500,
-  },
-  modePills: {
-    display: "flex", background: "rgba(0,0,0,0.2)",
-    borderRadius: 22, padding: 3, gap: 2,
-    position: "relative",
-  },
+  subtitle: { fontSize: 13, opacity: 0.75, marginTop: 6, fontWeight: 500 },
+  modePills: { display: "flex", background: "rgba(0,0,0,0.2)", borderRadius: 22, padding: 3, gap: 2 },
   modePill: {
     padding: "7px 16px", borderRadius: 19, border: "none",
-    color: "white", fontSize: 12, fontWeight: 600,
-    cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
-    letterSpacing: "0.01em",
+    color: "white", fontSize: 12, cursor: "pointer",
+    fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.01em",
   },
   progressBg: {
-    height: 7, background: "rgba(255,255,255,0.15)",
-    borderRadius: 4, overflow: "hidden", marginTop: 18,
-    position: "relative",
+    height: 7, background: "rgba(255,255,255,0.15)", borderRadius: 4,
+    overflow: "hidden", marginTop: 18, position: "relative",
   },
   progressFill: {
-    height: "100%", background: "rgba(255,255,255,0.8)",
-    borderRadius: 4,
+    height: "100%", background: "rgba(255,255,255,0.8)", borderRadius: 4,
     transition: "width 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
   },
-  progressLabel: {
-    position: "absolute", right: 0, top: -18,
-    fontSize: 11, fontWeight: 700, opacity: 0.7,
-  },
-
+  progressLabel: { position: "absolute", right: 0, top: -18, fontSize: 11, fontWeight: 700, opacity: 0.7 },
   content: { padding: "10px 16px" },
-  hint: {
-    fontSize: 12, color: "#a0998a", margin: "6px 0 14px",
-    lineHeight: 1.6, letterSpacing: "0.01em",
-  },
-
-  // Section
+  hint: { fontSize: 12, color: "#a0998a", margin: "6px 0 14px", lineHeight: 1.6, letterSpacing: "0.01em" },
   sectionHeader: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
     width: "100%", padding: "12px 2px 8px", border: "none",
-    background: "transparent", cursor: "pointer",
-    fontFamily: "'DM Sans', sans-serif",
+    background: "transparent", cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
   },
   sectionTitle: {
     fontSize: 13, fontWeight: 700, color: "#3a5c1a",
@@ -703,29 +683,17 @@ const styles = {
   sectionIcon: { fontSize: 16 },
   badge: {
     fontSize: 11, background: "#4A7C24", color: "white",
-    borderRadius: 12, padding: "2px 9px", fontWeight: 700,
-    letterSpacing: "0.02em",
+    borderRadius: 12, padding: "2px 9px", fontWeight: 700, letterSpacing: "0.02em",
   },
-  chevron: {
-    fontSize: 9, color: "#bbb",
-    transition: "transform 0.22s ease",
-    display: "inline-block",
-  },
-
-  // Card
+  chevron: { fontSize: 9, color: "#bbb", transition: "transform 0.22s ease", display: "inline-block" },
   card: {
     background: "white", borderRadius: 14, overflow: "hidden",
     boxShadow: "0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)",
   },
-  itemRow: {
-    display: "flex", alignItems: "center", padding: "12px 14px",
-  },
-
-  // Toggle
+  itemRow: { display: "flex", alignItems: "center", padding: "12px 14px" },
   toggle: {
     width: 40, height: 24, borderRadius: 12, border: "none",
-    position: "relative", cursor: "pointer",
-    marginRight: 12, flexShrink: 0,
+    position: "relative", cursor: "pointer", marginRight: 12, flexShrink: 0,
     transition: "background 0.22s ease",
   },
   toggleKnob: {
@@ -733,8 +701,6 @@ const styles = {
     position: "absolute", top: 3,
     transition: "left 0.22s cubic-bezier(0.34, 1.56, 0.64, 1)",
   },
-
-  // Qty
   qtyEditor: { display: "flex", alignItems: "center", gap: 4 },
   qtyInputSmall: {
     width: 34, border: "1px solid #ddd", borderRadius: 7,
@@ -743,8 +709,7 @@ const styles = {
   },
   unitInputSmall: {
     width: 52, border: "1px solid #ddd", borderRadius: 7,
-    padding: "4px 6px", fontSize: 13,
-    fontFamily: "'DM Sans', sans-serif", outline: "none",
+    padding: "4px 6px", fontSize: 13, fontFamily: "'DM Sans', sans-serif", outline: "none",
   },
   qtyConfirm: {
     background: "#4A7C24", color: "white", border: "none",
@@ -752,39 +717,22 @@ const styles = {
     cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600,
   },
   qtyPill: {
-    background: "#f0efe8", border: "1px solid #e4e2d8",
-    borderRadius: 8, padding: "4px 10px", fontSize: 12,
-    color: "#666", cursor: "pointer",
-    fontFamily: "'DM Sans', sans-serif", fontWeight: 600,
-    whiteSpace: "nowrap",
+    background: "#f0efe8", border: "1px solid #e4e2d8", borderRadius: 8,
+    padding: "4px 10px", fontSize: 12, color: "#666", cursor: "pointer",
+    fontFamily: "'DM Sans', sans-serif", fontWeight: 600, whiteSpace: "nowrap",
   },
-
-  stapleBtn: {
-    background: "none", border: "none",
-    fontSize: 14, cursor: "pointer", padding: "2px 4px", lineHeight: 1,
-  },
-  deleteBtn: {
-    background: "none", border: "none",
-    fontSize: 13, cursor: "pointer", padding: "4px 4px", lineHeight: 1,
-    opacity: 0.4,
-  },
-
-  // Add item
-  addRow: {
-    display: "flex", padding: "8px 14px", gap: 6,
-    borderTop: "1px solid #f0efe8",
-  },
+  stapleBtn: { background: "none", border: "none", fontSize: 14, cursor: "pointer", padding: "2px 4px", lineHeight: 1 },
+  deleteBtn: { background: "none", border: "none", fontSize: 13, cursor: "pointer", padding: "4px 4px", lineHeight: 1, opacity: 0.4 },
+  addRow: { display: "flex", padding: "8px 14px", gap: 6, borderTop: "1px solid #f0efe8" },
   addInput: {
     flex: 1, border: "1px solid #e4e2d8", borderRadius: 8,
-    padding: "8px 10px", fontSize: 13,
-    fontFamily: "'DM Sans', sans-serif", outline: "none",
-    background: "#fafaf7",
+    padding: "8px 10px", fontSize: 13, fontFamily: "'DM Sans', sans-serif",
+    outline: "none", background: "#fafaf7",
   },
   addBtn: {
     background: "#4A7C24", color: "white", border: "none",
     borderRadius: 8, padding: "8px 14px", fontSize: 12,
-    fontWeight: 700, cursor: "pointer",
-    fontFamily: "'DM Sans', sans-serif",
+    fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
   },
   cancelBtn: {
     background: "#eeecea", color: "#888", border: "none",
@@ -795,41 +743,26 @@ const styles = {
     width: "100%", padding: "11px 14px", border: "none",
     borderTop: "1px solid #f0efe8", background: "transparent",
     color: "#4A7C24", fontSize: 12, fontWeight: 700,
-    cursor: "pointer", textAlign: "left",
-    fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.02em",
+    cursor: "pointer", textAlign: "left", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.02em",
   },
-
-  // Shop mode
   shopSectionLabel: {
-    padding: "14px 4px 6px",
-    display: "flex", alignItems: "center", justifyContent: "space-between",
-    fontSize: 13, fontWeight: 700, letterSpacing: "0.04em",
-    textTransform: "uppercase", color: "#1B3A5C",
+    padding: "14px 4px 6px", display: "flex", alignItems: "center", justifyContent: "space-between",
+    fontSize: 13, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "#1B3A5C",
   },
-  donePill: {
-    fontSize: 11, background: "#e8f5e9", color: "#2E7D32",
-    borderRadius: 10, padding: "2px 9px", fontWeight: 700,
-  },
-
-  emptyState: {
-    textAlign: "center", padding: "70px 20px", color: "#aaa",
-  },
+  donePill: { fontSize: 11, background: "#e8f5e9", color: "#2E7D32", borderRadius: 10, padding: "2px 9px", fontWeight: 700 },
+  emptyState: { textAlign: "center", padding: "70px 20px", color: "#aaa" },
   celebration: {
     textAlign: "center", padding: "36px 20px",
     background: "linear-gradient(135deg, #f0fae8 0%, #d4edbc 100%)",
     borderRadius: 18, margin: "20px 0",
     boxShadow: "0 4px 20px rgba(45,80,22,0.10)",
   },
-
-  // Bottom bar
   bottomBar: {
     position: "fixed", bottom: 0, left: 0, right: 0,
     background: "rgba(247,246,241,0.92)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
+    backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
     borderTop: "1px solid rgba(0,0,0,0.07)",
-    padding: "10px 16px 16px",
-    display: "flex", gap: 10, justifyContent: "center",
+    padding: "10px 16px 16px", display: "flex", gap: 10, justifyContent: "center",
     zIndex: 100, maxWidth: 500, margin: "0 auto",
     boxShadow: "0 -4px 20px rgba(0,0,0,0.05)",
   },
@@ -842,15 +775,11 @@ const styles = {
   primaryBtn: {
     flex: 2, padding: "13px", borderRadius: 12, border: "none",
     color: "white", fontSize: 14, fontWeight: 700,
-    cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
-    letterSpacing: "0.01em",
+    cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.01em",
   },
-
-  // Modal
   overlay: {
     position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    zIndex: 200, padding: 20,
+    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20,
   },
   modal: {
     background: "white", borderRadius: 20, padding: "28px 24px",
@@ -859,17 +788,13 @@ const styles = {
   },
   modalTitle: {
     margin: "0 0 10px", fontSize: 18,
-    fontFamily: "'Fraunces', serif", fontWeight: 500,
-    fontStyle: "italic", color: "#1a1a1a",
+    fontFamily: "'Fraunces', serif", fontWeight: 500, fontStyle: "italic", color: "#1a1a1a",
   },
-  modalBody: {
-    fontSize: 13, color: "#888", margin: "0 0 22px", lineHeight: 1.6,
-  },
+  modalBody: { fontSize: 13, color: "#888", margin: "0 0 22px", lineHeight: 1.6 },
   modalCancel: {
     flex: 1, padding: "12px", borderRadius: 10,
     border: "1.5px solid #e0dfd8", background: "white",
-    color: "#888", fontSize: 14, cursor: "pointer",
-    fontFamily: "'DM Sans', sans-serif",
+    color: "#888", fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
   },
   modalConfirm: {
     flex: 1, padding: "12px", borderRadius: 10, border: "none",
@@ -877,16 +802,10 @@ const styles = {
     color: "white", fontSize: 14, fontWeight: 700,
     cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
   },
-
-  // Toast
   toast: {
-    position: "fixed", bottom: 108, left: "50%",
-    transform: "translateX(-50%)",
-    background: "#1a1a1a", color: "white",
-    padding: "11px 22px", borderRadius: 12,
-    fontSize: 13, fontWeight: 500,
-    zIndex: 300, fontFamily: "'DM Sans', sans-serif",
-    boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
-    whiteSpace: "nowrap",
+    position: "fixed", bottom: 108, left: "50%", transform: "translateX(-50%)",
+    background: "#1a1a1a", color: "white", padding: "11px 22px", borderRadius: 12,
+    fontSize: 13, fontWeight: 500, zIndex: 300, fontFamily: "'DM Sans', sans-serif",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.25)", whiteSpace: "nowrap",
   },
 };
