@@ -2,12 +2,12 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey:            "AIzaSyCD78QGXs6h-TZCEGv9GEaA29D4md230Fg",
+  authDomain:        "grocery-planner-9ffc6.firebaseapp.com",
+  projectId:         "grocery-planner-9ffc6",
+  storageBucket:     "grocery-planner-9ffc6.firebasestorage.app",
+  messagingSenderId: "351138353045",
+  appId:             "1:351138353045:web:46504dce2c798c6139309c",
 };
 
 const app = initializeApp(firebaseConfig);
