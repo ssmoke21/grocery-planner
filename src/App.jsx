@@ -4,18 +4,10 @@ import {
   collection, doc, addDoc, updateDoc, deleteDoc,
   writeBatch, onSnapshot, serverTimestamp,
 } from "firebase/firestore";
+import { SECTION_ORDER, SECTION_ICONS } from "./sections.js";
+import { useRecipeData } from "./recipes/useRecipeData.js";
+import RecipeLibrary from "./recipes/RecipeLibrary.jsx";
 import "./App.css";
-
-const SECTION_ORDER = [
-  "Produce", "Meat & Seafood", "Dairy & Eggs", "Bakery", "Pantry",
-  "Frozen", "Snacks", "Toddler", "Deli", "Household", "Recipe Items",
-];
-
-const SECTION_ICONS = {
-  Produce: "🥬", "Meat & Seafood": "🥩", "Dairy & Eggs": "🥛",
-  Bakery: "🍞", Pantry: "🥫", Frozen: "🧊", Snacks: "🍿",
-  Toddler: "👶", Deli: "🧀", Household: "🏠", "Recipe Items": "🍳",
-};
 
 const FREQ_COLORS = {
   weekly: { bg: "#E8F5E9", text: "#2E7D32" },
@@ -24,7 +16,24 @@ const FREQ_COLORS = {
 };
 const FREQ_LABEL = { weekly: "weekly", most: "most wks", regular: "2-3 wks" };
 
+const TABS = [
+  { key: "list",    label: "🛒 List" },
+  { key: "recipes", label: "📖 Recipes" },
+];
+
+// Each phone remembers its own last tab.
+const readTab = () => {
+  try { return localStorage.getItem("tab") || "list"; } catch { return "list"; }
+};
+
 export default function App() {
+  const [tab, setTabState]            = useState(readTab);
+  const setTab = (t) => {
+    setTabState(t);
+    window.scrollTo(0, 0);
+    try { localStorage.setItem("tab", t); } catch { /* private mode */ }
+  };
+  const { recipes, mealPlan, loading: recipesLoading } = useRecipeData();
   const [items, setItems]             = useState([]);
   const [mode, setMode]               = useState("plan");
   const [loading, setLoading]         = useState(true);
@@ -212,7 +221,9 @@ export default function App() {
     .map((s) => ({ ...s, items: s.items.filter((i) => i.is_selected) }))
     .filter((s) => s.items.length > 0);
 
-  const isPlan = mode === "plan";
+  const isPlan    = mode === "plan";
+  const isList    = tab === "list";
+  const isRecipes = tab === "recipes";
 
   // ── LOADING ─────────────────────────────────────────────────
   if (loading) {
@@ -236,16 +247,29 @@ export default function App() {
 
   // ── MAIN ────────────────────────────────────────────────────
   return (
-    <div style={styles.container}>
+    <div style={{ ...styles.container, paddingBottom: isList ? 96 : 24 }}>
 
       {/* ── HEADER ── */}
       <div style={{
         ...styles.header,
-        background: isPlan
+        background: isRecipes
+          ? "linear-gradient(150deg, #4a220e 0%, #8a4a22 100%)"
+          : isPlan
           ? "linear-gradient(150deg, #1e3a0f 0%, #3a6b1a 100%)"
           : "linear-gradient(150deg, #112233 0%, #1e4d7a 100%)",
       }}>
         <div style={styles.headerNoise} />
+        {isRecipes ? (
+          <div style={styles.headerTop}>
+            <div>
+              <div style={styles.headerEyebrow}>RECIPE LIBRARY</div>
+              <h1 style={styles.title}>What's for dinner?</h1>
+              <div style={styles.subtitle}>
+                {recipes.length} recipe{recipes.length !== 1 ? "s" : ""}
+              </div>
+            </div>
+          </div>
+        ) : (
         <div style={styles.headerTop}>
           <div>
             <div style={styles.headerEyebrow}>
@@ -282,8 +306,9 @@ export default function App() {
             >Shop</button>
           </div>
         </div>
+        )}
 
-        {!isPlan && selectedItems.length > 0 && (
+        {isList && !isPlan && selectedItems.length > 0 && (
           <div style={styles.progressBg}>
             <div style={{
               ...styles.progressFill,
@@ -294,10 +319,34 @@ export default function App() {
             </span>
           </div>
         )}
+
+        {/* ── TABS ── */}
+        <div style={styles.tabBar}>
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              className="tab-btn"
+              onClick={() => setTab(t.key)}
+              style={{
+                ...styles.tabBtn,
+                background: tab === t.key ? "rgba(255,255,255,0.25)" : "transparent",
+                fontWeight: tab === t.key ? 700 : 500,
+                opacity: tab === t.key ? 1 : 0.8,
+              }}
+            >{t.label}</button>
+          ))}
+        </div>
       </div>
 
+      {/* ── RECIPES ── */}
+      {isRecipes && (
+        recipesLoading
+          ? <div style={styles.emptyState}>Loading recipes…</div>
+          : <RecipeLibrary recipes={recipes} mealPlan={mealPlan} showToast={showToast} />
+      )}
+
       {/* ── PLAN MODE ── */}
-      {isPlan && (
+      {isList && isPlan && (
         <div style={styles.content}>
           <p style={styles.hint}>
             Toggle what you need this week · tap qty to adjust · 📌 pins items as staples
@@ -468,7 +517,7 @@ export default function App() {
       )}
 
       {/* ── SHOP MODE ── */}
-      {!isPlan && (
+      {isList && !isPlan && (
         <div style={styles.content}>
           {selectedItems.length === 0 ? (
             <div style={styles.emptyState}>
@@ -556,7 +605,7 @@ export default function App() {
       )}
 
       {/* ── BOTTOM BAR ── */}
-      <div style={styles.bottomBar}>
+      {isList && <div style={styles.bottomBar}>
         {isPlan ? (
           <>
             <button className="secondary-btn" onClick={() => setShowConfirm(true)} style={styles.secondaryBtn}>
@@ -595,7 +644,7 @@ export default function App() {
             >Copy Remaining</button>
           </>
         )}
-      </div>
+      </div>}
 
       {/* ── MODAL ── */}
       {showConfirm && (
@@ -657,6 +706,15 @@ const styles = {
   modePill: {
     padding: "7px 16px", borderRadius: 19, border: "none",
     color: "white", fontSize: 12, cursor: "pointer",
+    fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.01em",
+  },
+  tabBar: {
+    display: "flex", background: "rgba(0,0,0,0.2)", borderRadius: 12,
+    padding: 3, gap: 3, marginTop: 16, position: "relative",
+  },
+  tabBtn: {
+    flex: 1, padding: "10px 0", borderRadius: 9, border: "none",
+    color: "white", fontSize: 14, cursor: "pointer",
     fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.01em",
   },
   progressBg: {

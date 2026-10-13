@@ -118,3 +118,29 @@
 .add-trigger-btn:active {
   background: #f0f7e8 !important;
 }
+
+/* ── Recipes ────────────────────────────────────────────── */
+
+@keyframes sheetIn {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.sheet-anim {
+  animation: sheetIn 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.recipe-card {
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.recipe-card:active {
+  transform: scale(0.985);
+  background: #faf6f0 !important;
+}
+
+.tab-btn {
+  transition: background 0.18s ease, opacity 0.15s ease;
+}
+.tab-btn:active {
+  opacity: 0.75;
+}
