@@ -4,13 +4,13 @@ import { collection, doc, writeBatch, serverTimestamp } from "firebase/firestore
 import {
   PROTEINS, DIFFICULTIES, TIME_BUCKETS, COOK_METHODS, SEASONS, SORTS, byKey,
 } from "./constants.js";
-import { timeBucket, currentSeason, isInSeason, buildUsage, usageLabel } from "./utils.js";
+import { timeBucket, currentSeason, isInSeason, buildUsage, usageLabel, weekStart } from "./utils.js";
 import { SAMPLE_RECIPES } from "./sampleRecipes.js";
 import RecipeTags, { RecipeThumb } from "./RecipeTags.jsx";
 import RecipeDetail from "./RecipeDetail.jsx";
 import RecipeForm from "./RecipeForm.jsx";
 import ImportRecipes from "./ImportRecipes.jsx";
-import { deleteRecipe } from "./recipeApi.js";
+import { deleteRecipe, addToPlan, removeFromPlan } from "./recipeApi.js";
 
 const EMPTY_FILTERS = { protein: [], difficulty: [], time: [], method: [], season: [] };
 
@@ -100,6 +100,19 @@ export default function RecipeLibrary({ recipes, mealPlan, groceryItems, showToa
 
   const openRecipe = recipes.find((r) => r.id === openId);
 
+  // "Add to this week" from the detail sheet.
+  const thisWeek = weekStart(0);
+  const planEntry = openRecipe && mealPlan.find((m) => m.recipe_id === openRecipe.id && m.week_start === thisWeek);
+  const togglePlan = async () => {
+    try {
+      if (planEntry) await removeFromPlan(planEntry.id);
+      else { await addToPlan(openRecipe, thisWeek); showToast("Added to this week"); }
+    } catch (e) {
+      console.error(e);
+      showToast("Couldn't update the plan — try again");
+    }
+  };
+
   const handleDelete = async () => {
     try {
       await deleteRecipe(openRecipe.id, mealPlan);
@@ -123,6 +136,8 @@ export default function RecipeLibrary({ recipes, mealPlan, groceryItems, showToa
           onClose={() => setOpenId(null)}
           onEdit={() => setEditing(openRecipe)}
           onDelete={handleDelete}
+          planned={!!planEntry}
+          onTogglePlan={togglePlan}
         />
       )}
       {editing && (

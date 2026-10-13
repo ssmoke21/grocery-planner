@@ -7,6 +7,8 @@ import {
 import { SECTION_ORDER, SECTION_ICONS } from "./sections.js";
 import { useRecipeData } from "./recipes/useRecipeData.js";
 import RecipeLibrary from "./recipes/RecipeLibrary.jsx";
+import WeekPlan from "./recipes/WeekPlan.jsx";
+import { weekStart, formatWeekRange } from "./recipes/utils.js";
 import "./App.css";
 
 const FREQ_COLORS = {
@@ -19,6 +21,7 @@ const FREQ_LABEL = { weekly: "weekly", most: "most wks", regular: "2-3 wks" };
 const TABS = [
   { key: "list",    label: "🛒 List" },
   { key: "recipes", label: "📖 Recipes" },
+  { key: "week",    label: "📅 This Week" },
 ];
 
 // Each phone remembers its own last tab.
@@ -224,6 +227,9 @@ export default function App() {
   const isPlan    = mode === "plan";
   const isList    = tab === "list";
   const isRecipes = tab === "recipes";
+  const isWeek    = tab === "week";
+  const thisWeek  = weekStart(0);
+  const plannedThisWeek = mealPlan.filter((m) => m.week_start === thisWeek).length;
 
   // ── LOADING ─────────────────────────────────────────────────
   if (loading) {
@@ -252,14 +258,26 @@ export default function App() {
       {/* ── HEADER ── */}
       <div style={{
         ...styles.header,
-        background: isRecipes
+        background: isWeek
+          ? "linear-gradient(150deg, #173a36 0%, #2f6b63 100%)"
+          : isRecipes
           ? "linear-gradient(150deg, #4a220e 0%, #8a4a22 100%)"
           : isPlan
           ? "linear-gradient(150deg, #1e3a0f 0%, #3a6b1a 100%)"
           : "linear-gradient(150deg, #112233 0%, #1e4d7a 100%)",
       }}>
         <div style={styles.headerNoise} />
-        {isRecipes ? (
+        {isWeek ? (
+          <div style={styles.headerTop}>
+            <div>
+              <div style={styles.headerEyebrow}>MEAL PLAN</div>
+              <h1 style={styles.title}>This Week</h1>
+              <div style={styles.subtitle}>
+                {plannedThisWeek} meal{plannedThisWeek !== 1 ? "s" : ""} planned · {formatWeekRange(thisWeek)}
+              </div>
+            </div>
+          </div>
+        ) : isRecipes ? (
           <div style={styles.headerTop}>
             <div>
               <div style={styles.headerEyebrow}>RECIPE LIBRARY</div>
@@ -343,6 +361,19 @@ export default function App() {
         recipesLoading
           ? <div style={styles.emptyState}>Loading recipes…</div>
           : <RecipeLibrary recipes={recipes} mealPlan={mealPlan} groceryItems={items} showToast={showToast} />
+      )}
+
+      {/* ── THIS WEEK ── */}
+      {isWeek && (
+        recipesLoading
+          ? <div style={styles.emptyState}>Loading…</div>
+          : <WeekPlan
+              recipes={recipes}
+              mealPlan={mealPlan}
+              groceryItems={items}
+              showToast={showToast}
+              onGoToList={() => setTab("list")}
+            />
       )}
 
       {/* ── PLAN MODE ── */}

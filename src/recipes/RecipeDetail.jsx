@@ -8,7 +8,10 @@ import { ui, font, BROWN, useBodyScrollLock } from "./ui.js";
 const M = byKey(COOK_METHODS);
 const S = byKey(SEASONS);
 
-export default function RecipeDetail({ recipe, usage, onClose, onEdit, onDelete }) {
+export default function RecipeDetail({
+  recipe, usage, onClose, onEdit, onDelete,
+  backLabel = "← Recipes", planned, planLabel = "this week", onTogglePlan,
+}) {
   useBodyScrollLock();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting]           = useState(false);
@@ -28,8 +31,10 @@ export default function RecipeDetail({ recipe, usage, onClose, onEdit, onDelete 
   return (
     <div className="sheet-anim" style={ui.sheet}>
       <div style={ui.topBar}>
-        <button className="secondary-btn" onClick={onClose} style={ui.backBtn}>← Recipes</button>
-        <button className="secondary-btn" onClick={onEdit} style={{ ...ui.backBtn, color: BROWN }}>✏️ Edit</button>
+        <button className="secondary-btn" onClick={onClose} style={ui.backBtn}>{backLabel}</button>
+        {onEdit && (
+          <button className="secondary-btn" onClick={onEdit} style={{ ...ui.backBtn, color: BROWN }}>✏️ Edit</button>
+        )}
       </div>
 
       <div style={ui.body}>
@@ -53,6 +58,19 @@ export default function RecipeDetail({ recipe, usage, onClose, onEdit, onDelete 
             ? recipe.seasons.map((s) => S[s] && <Tag key={s}>{S[s].icon} {S[s].label}</Tag>)
             : <Tag>🗓 Year-round</Tag>}
         </div>
+
+        {onTogglePlan && (
+          <button
+            className="primary-btn"
+            onClick={onTogglePlan}
+            style={{
+              ...styles.planBtn,
+              background: planned ? "#eef6f4" : "linear-gradient(135deg, #1f4d47 0%, #2f6b63 100%)",
+              color: planned ? "#2f6b63" : "white",
+              border: planned ? "1.5px solid #2f6b6355" : "none",
+            }}
+          >{planned ? `✓ On ${planLabel}'s plan · tap to remove` : `＋ Add to ${planLabel}`}</button>
+        )}
 
         {/* ── Ingredients ── */}
         <div style={ui.sectionLabel}>Ingredients</div>
@@ -97,9 +115,11 @@ export default function RecipeDetail({ recipe, usage, onClose, onEdit, onDelete 
           </a>
         )}
 
-        <button className="secondary-btn" onClick={() => setConfirmDelete(true)} style={styles.deleteBtn}>
-          🗑️ Delete recipe
-        </button>
+        {onDelete && (
+          <button className="secondary-btn" onClick={() => setConfirmDelete(true)} style={styles.deleteBtn}>
+            🗑️ Delete recipe
+          </button>
+        )}
       </div>
 
       {confirmDelete && (
@@ -127,6 +147,10 @@ const styles = {
   name: {
     fontFamily: "'Fraunces', serif", fontSize: 24, margin: 0, color: "#1a1a1a",
     fontWeight: 500, fontStyle: "italic", letterSpacing: "-0.01em", lineHeight: 1.15,
+  },
+  planBtn: {
+    display: "block", width: "100%", marginTop: 16, padding: "14px", borderRadius: 12,
+    fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
   ingRow: { display: "flex", alignItems: "center", gap: 12, padding: "12px 16px" },
   textBlock: { padding: "14px 16px", fontSize: 14, color: "#333", lineHeight: 1.65, whiteSpace: "pre-wrap" },

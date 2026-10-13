@@ -1,6 +1,6 @@
 import { db } from "../firebase.js";
 import {
-  collection, doc, addDoc, updateDoc, writeBatch, serverTimestamp,
+  collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp,
 } from "firebase/firestore";
 
 export const createRecipe = async (recipe) => {
@@ -34,4 +34,25 @@ export const importRecipes = async (recipes) => {
     });
     await batch.commit();
   }
+};
+
+// ── Meal plan ──
+export const addToPlan = (recipe, week) =>
+  addDoc(collection(db, "meal_plan"), {
+    recipe_id: recipe.id, recipe_name: recipe.name, week_start: week,
+    createdAt: serverTimestamp(),
+  });
+
+export const removeFromPlan = (entryId) => deleteDoc(doc(db, "meal_plan", entryId));
+
+// ── Grocery list ── (plan comes from planGroceryWrites)
+export const applyGroceryWrites = async ({ creates, updates }) => {
+  const batch = writeBatch(db);
+  creates.forEach((item) => {
+    batch.set(doc(collection(db, "grocery_items")), { ...item, createdAt: serverTimestamp() });
+  });
+  updates.forEach(({ id, changes }) => {
+    batch.update(doc(db, "grocery_items", id), { ...changes, updatedAt: serverTimestamp() });
+  });
+  await batch.commit();
 };

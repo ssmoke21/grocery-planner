@@ -2,7 +2,7 @@
 // collecting human-readable warnings for anything it had to fix.
 import { PROTEINS, DIFFICULTIES, COOK_METHODS, SEASONS } from "./constants.js";
 import { SECTION_ORDER, FALLBACK_SECTION } from "../sections.js";
-import { nameKey } from "./utils.js";
+import { findGroceryMatch } from "./utils.js";
 
 const squash = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
 
@@ -39,11 +39,19 @@ Object.assign(SECTION_MAP, {
   freezer: "Frozen", other: FALLBACK_SECTION,
 });
 
+const UNICODE_FRACTIONS = { "¼": "1/4", "½": "1/2", "¾": "3/4", "⅓": "1/3", "⅔": "2/3" };
+
+// Is this text just a number? ("2", "1.5", "1/2", "1 1/2", "1½")
+export const isPlainQty = (v) =>
+  /^\s*(\d+(\.\d+)?|\d+\/\d+|\d+\s+\d+\/\d+|\d*\s*[¼½¾⅓⅔])\s*$/.test(String(v ?? ""));
+
 // "2" → 2, "1.5" → 1.5, "1/2" → 0.5, "1 1/2" → 1.5, "" → null
 export const parseQty = (v) => {
   if (v === null || v === undefined || v === "") return null;
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
-  const s = String(v).trim();
+  // Unicode fractions ("1½", "¾") → "1 1/2", "3/4"
+  const s = String(v).trim()
+    .replace(/(\d)?\s*([¼½¾⅓⅔])/, (_, w, f) => `${w ? w + " " : ""}${UNICODE_FRACTIONS[f]}`);
   const mixed = s.match(/^(\d+)\s+(\d+)\/(\d+)$/);
   if (mixed) return +mixed[1] + mixed[2] / mixed[3];
   const frac = s.match(/^(\d+)\/(\d+)$/);
@@ -61,10 +69,8 @@ const asList = (v) =>
   Array.isArray(v) ? v : typeof v === "string" && v.trim() ? v.split(/[,;]/) : [];
 
 // Find a section for an ingredient name using what's already on the grocery list.
-export const guessSection = (name, groceryItems = []) => {
-  const key = nameKey(name);
-  return groceryItems.find((i) => nameKey(i.name) === key)?.section || null;
-};
+export const guessSection = (name, groceryItems = []) =>
+  findGroceryMatch(name, groceryItems)?.section || null;
 
 /**
  * Returns { recipe, warnings }. `recipe` is ready to save to Firestore

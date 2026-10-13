@@ -71,3 +71,50 @@ export const nameKey = (name) => {
   else if (s.length > 3 && s.endsWith("s") && !/(ss|us|is)$/.test(s)) s = s.slice(0, -1);
   return s;
 };
+
+// Grocery names often carry a note: "Onions (yellow)", "Yogurt — Siggi's".
+// The loose key drops that note so "onions" still finds "Onions (yellow)".
+export const looseKey = (name) =>
+  nameKey(String(name || "").replace(/\(.*?\)/g, "").split(/\s[—–-]\s|,/)[0]);
+
+// Best grocery-list match for an ingredient name, or undefined.
+export const findGroceryMatch = (name, groceryItems = []) => {
+  const exact = nameKey(name);
+  const loose = looseKey(name);
+  return groceryItems.find((i) => nameKey(i.name) === exact)
+      || groceryItems.find((i) => looseKey(i.name) === loose);
+};
+
+// ── Weeks (Monday start, local time) ──
+export const toDayString = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+// weekStart(0) = this Monday, weekStart(1) = next Monday.
+export const weekStart = (offsetWeeks = 0, from = new Date()) => {
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + offsetWeeks * 7);
+  return toDayString(d);
+};
+
+// "2026-10-12" → "Oct 12 – 18"
+export const formatWeekRange = (start) => {
+  const a = parseDay(start);
+  const b = new Date(a.getFullYear(), a.getMonth(), a.getDate() + 6);
+  const mon = (d) => d.toLocaleDateString(undefined, { month: "short" });
+  return a.getMonth() === b.getMonth()
+    ? `${mon(a)} ${a.getDate()} – ${b.getDate()}`
+    : `${mon(a)} ${a.getDate()} – ${mon(b)} ${b.getDate()}`;
+};
+
+// ── Units ── "Cups" → "cup", "lbs" → "lb", "pounds" → "lb"
+const UNIT_ALIASES = {
+  pound: "lb", lb: "lb", ounce: "oz", oz: "oz",
+  tablespoon: "tbsp", tbsp: "tbsp", tbs: "tbsp", teaspoon: "tsp", tsp: "tsp",
+  gallon: "gal", gal: "gal", package: "pkg", pkg: "pkg",
+};
+export const unitKey = (unit) => {
+  let u = String(unit || "").toLowerCase().trim().replace(/\.$/, "");
+  if (u.length > 2 && u.endsWith("es") && /(ch|sh|x)es$/.test(u)) u = u.slice(0, -2);
+  else if (u.length > 2 && u.endsWith("s")) u = u.slice(0, -1);
+  return UNIT_ALIASES[u] || u;
+};
