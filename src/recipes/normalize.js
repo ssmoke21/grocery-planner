@@ -1,6 +1,6 @@
 // Turns form input or imported JSON into a clean recipe document,
 // collecting human-readable warnings for anything it had to fix.
-import { PROTEINS, DIFFICULTIES, COOK_METHODS, SEASONS } from "./constants.js";
+import { PROTEINS, DIFFICULTIES, COOK_METHODS, SEASONS, COURSES } from "./constants.js";
 import { SECTION_ORDER, FALLBACK_SECTION } from "../sections.js";
 import { findGroceryMatch } from "./utils.js";
 
@@ -28,6 +28,10 @@ const METHOD_MAP = lookup(COOK_METHODS, {
   grilled: "grill", bbq: "grill", "no cook": "no_cook", raw: "no_cook",
 });
 const SEASON_MAP = lookup(SEASONS, { autumn: "fall" });
+const COURSE_MAP = lookup(COURSES, {
+  sides: "side", "side dish": "side", "side salad": "side",
+  entree: "main", "main dish": "main", "main course": "main", dinner: "main",
+});
 const YEAR_ROUND = new Set(["yearround", "all", "any", "allyear"]);
 
 const SECTION_MAP = Object.fromEntries(SECTION_ORDER.map((s) => [squash(s), s]));
@@ -120,6 +124,7 @@ export function normalizeRecipe(raw, groceryItems = []) {
 
   const recipe = {
     name:          str(raw.name),
+    course:        pickOne(raw.course, COURSE_MAP, "dish type") || "main",
     protein:       pickOne(raw.protein, PROTEIN_MAP, "protein"),
     difficulty:    pickOne(raw.difficulty, DIFFICULTY_MAP, "difficulty"),
     total_minutes: toPositiveInt(raw.total_minutes),

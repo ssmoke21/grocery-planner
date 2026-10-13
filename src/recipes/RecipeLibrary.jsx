@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { db } from "../firebase.js";
 import { collection, doc, writeBatch, serverTimestamp } from "firebase/firestore";
 import {
-  PROTEINS, DIFFICULTIES, TIME_BUCKETS, COOK_METHODS, SEASONS, SORTS, byKey,
+  PROTEINS, DIFFICULTIES, TIME_BUCKETS, COOK_METHODS, SEASONS, SORTS, byKey, COURSES, courseOf,
   FAVORITE_MIN_TIMES, NOT_IN_A_WHILE_DAYS,
 } from "./constants.js";
 import {
@@ -15,7 +15,7 @@ import RecipeForm from "./RecipeForm.jsx";
 import ImportRecipes from "./ImportRecipes.jsx";
 import { deleteRecipe, addToPlan, removeFromPlan } from "./recipeApi.js";
 
-const EMPTY_FILTERS = { usage: [], protein: [], difficulty: [], time: [], method: [], season: [] };
+const EMPTY_FILTERS = { usage: [], course: [], protein: [], difficulty: [], time: [], method: [], season: [] };
 
 const USAGE_OPTIONS = [
   { key: "favorite", label: "⭐ Favorites",   hint: `${FAVORITE_MIN_TIMES}+ times` },
@@ -25,6 +25,7 @@ const USAGE_OPTIONS = [
 
 const FILTER_GROUPS = [
   { key: "usage",      title: "Usage",       options: USAGE_OPTIONS },
+  { key: "course",     title: "Dish",        options: COURSES },
   { key: "protein",    title: "Protein",     options: PROTEINS },
   { key: "difficulty", title: "Difficulty",  options: DIFFICULTIES },
   { key: "time",       title: "Time",        options: TIME_BUCKETS },
@@ -38,6 +39,7 @@ const SEASON_LABEL = byKey(SEASONS)[SEASON_NOW];
 // Within a group, any selected option matches. Across groups, all must match.
 const matchesFilters = (r, f, status) =>
   (!f.usage.length      || f.usage.some((k) => status[k])) &&
+  (!f.course.length     || f.course.includes(courseOf(r))) &&
   (!f.protein.length    || f.protein.includes(r.protein)) &&
   (!f.difficulty.length || f.difficulty.includes(r.difficulty)) &&
   (!f.time.length       || f.time.includes(timeBucket(r.total_minutes))) &&

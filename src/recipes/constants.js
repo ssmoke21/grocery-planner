@@ -13,6 +13,13 @@ export const PROTEINS = [
   { key: "other",      label: "Other",          icon: "🍽️", tint: "#EEEDE6" },
 ];
 
+// Recipes without a course count as mains.
+export const COURSES = [
+  { key: "main", label: "Main",      icon: "🍽️" },
+  { key: "side", label: "Side dish", icon: "🥗" },
+];
+export const courseOf = (recipe) => (recipe.course === "side" ? "side" : "main");
+
 export const DIFFICULTIES = [
   { key: "easy",   label: "Easy" },
   { key: "medium", label: "Medium" },

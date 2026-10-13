@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { PROTEINS, DIFFICULTIES, TIME_BUCKETS, COOK_METHODS, SEASONS, byKey } from "./constants.js";
+import { PROTEINS, DIFFICULTIES, TIME_BUCKETS, COOK_METHODS, SEASONS, COURSES, byKey, courseOf } from "./constants.js";
 import { timeBucket } from "./utils.js";
 import { normalizeRecipe, guessSection } from "./normalize.js";
 import { createRecipe, updateRecipe } from "./recipeApi.js";
@@ -12,6 +12,7 @@ const newKey = () => `k${++keySeq}`;
 
 const toForm = (r = {}) => ({
   name:          r.name || "",
+  course:        courseOf(r),
   protein:       r.protein || null,
   difficulty:    r.difficulty || null,
   total_minutes: r.total_minutes ? String(r.total_minutes) : "",
@@ -131,6 +132,15 @@ export default function RecipeForm({ initial, groceryItems, onCancel, onSaved, s
           style={{ ...ui.input, borderColor: nameError ? "#c44" : "#e4e2d8" }}
         />
         {nameError && <p style={{ ...ui.hint, color: "#c44" }}>Give the recipe a name.</p>}
+
+        {/* ── Dish ── */}
+        <div style={ui.sectionLabel}>Dish</div>
+        <div style={ui.chipRow}>
+          {COURSES.map((c) => (
+            <button key={c.key} onClick={() => set("course", c.key)}
+              style={chipStyle(form.course === c.key)}>{c.icon} {c.label}</button>
+          ))}
+        </div>
 
         {/* ── Protein ── */}
         <div style={ui.sectionLabel}>Protein</div>
