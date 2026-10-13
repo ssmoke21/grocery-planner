@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { normalizeRecipe } from "./normalize.js";
 import { importRecipes } from "./recipeApi.js";
-import { ui, font, BROWN, useBodyScrollLock } from "./ui.js";
+import { ui, font, BROWN, useBodyScrollLock, useBackToClose } from "./ui.js";
 
 const sameName = (s) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
 
@@ -42,6 +42,7 @@ const buildPreview = (text, existing, groceryItems) => {
 
 export default function ImportRecipes({ recipes, groceryItems, onClose, showToast }) {
   useBodyScrollLock();
+  useBackToClose(onClose);
   const [text, setText]       = useState("");
   const [preview, setPreview] = useState(null);
   const [saving, setSaving]   = useState(false);

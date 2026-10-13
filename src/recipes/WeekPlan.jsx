@@ -1,10 +1,10 @@
 import { useState, useMemo } from "react";
-import { weekStart, formatWeekRange, buildUsage, usageLabel } from "./utils.js";
+import { weekStart, formatWeekRange, buildUsage } from "./utils.js";
 import { addToPlan, removeFromPlan } from "./recipeApi.js";
-import RecipeTags, { RecipeThumb } from "./RecipeTags.jsx";
+import RecipeTags, { RecipeThumb, UsageLine } from "./RecipeTags.jsx";
 import RecipeDetail from "./RecipeDetail.jsx";
 import GroceryReview from "./GroceryReview.jsx";
-import { ui, font, useBodyScrollLock } from "./ui.js";
+import { ui, font, useBodyScrollLock, useBackToClose } from "./ui.js";
 
 const TEAL = "#2f6b63";
 const WEEKS = [
@@ -162,6 +162,7 @@ export default function WeekPlan({ recipes, mealPlan, groceryItems, showToast, o
 
 function RecipePicker({ recipes, usage, isPlanned, onToggle, title, onClose }) {
   useBodyScrollLock();
+  useBackToClose(onClose);
   const [search, setSearch] = useState("");
   const q = search.trim().toLowerCase();
   const list = recipes
@@ -204,7 +205,7 @@ function RecipePicker({ recipes, usage, isPlanned, onToggle, title, onClose }) {
                 <RecipeThumb recipe={r} size={40} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: "#222" }}>{r.name}</div>
-                  <div style={{ fontSize: 12, color: "#a0998a", marginTop: 2 }}>{usageLabel(usage[r.id])}</div>
+                  <UsageLine usage={usage[r.id]} style={{ marginTop: 2 }} />
                 </div>
                 <span style={{
                   ...styles.pickPill,

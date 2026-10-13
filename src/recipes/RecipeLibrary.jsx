@@ -3,18 +3,28 @@ import { db } from "../firebase.js";
 import { collection, doc, writeBatch, serverTimestamp } from "firebase/firestore";
 import {
   PROTEINS, DIFFICULTIES, TIME_BUCKETS, COOK_METHODS, SEASONS, SORTS, byKey,
+  FAVORITE_MIN_TIMES, NOT_IN_A_WHILE_DAYS,
 } from "./constants.js";
-import { timeBucket, currentSeason, isInSeason, buildUsage, usageLabel, weekStart } from "./utils.js";
+import {
+  timeBucket, currentSeason, isInSeason, buildUsage, usageStatus, weekStart,
+} from "./utils.js";
 import { SAMPLE_RECIPES } from "./sampleRecipes.js";
-import RecipeTags, { RecipeThumb } from "./RecipeTags.jsx";
+import RecipeTags, { RecipeThumb, UsageLine } from "./RecipeTags.jsx";
 import RecipeDetail from "./RecipeDetail.jsx";
 import RecipeForm from "./RecipeForm.jsx";
 import ImportRecipes from "./ImportRecipes.jsx";
 import { deleteRecipe, addToPlan, removeFromPlan } from "./recipeApi.js";
 
-const EMPTY_FILTERS = { protein: [], difficulty: [], time: [], method: [], season: [] };
+const EMPTY_FILTERS = { usage: [], protein: [], difficulty: [], time: [], method: [], season: [] };
+
+const USAGE_OPTIONS = [
+  { key: "favorite", label: "⭐ Favorites",   hint: `${FAVORITE_MIN_TIMES}+ times` },
+  { key: "never",    label: "Never made" },
+  { key: "stale",    label: "Not in a while", hint: `${NOT_IN_A_WHILE_DAYS}+ days` },
+];
 
 const FILTER_GROUPS = [
+  { key: "usage",      title: "Usage",       options: USAGE_OPTIONS },
   { key: "protein",    title: "Protein",     options: PROTEINS },
   { key: "difficulty", title: "Difficulty",  options: DIFFICULTIES },
   { key: "time",       title: "Time",        options: TIME_BUCKETS },
@@ -26,7 +36,8 @@ const SEASON_NOW = currentSeason();
 const SEASON_LABEL = byKey(SEASONS)[SEASON_NOW];
 
 // Within a group, any selected option matches. Across groups, all must match.
-const matchesFilters = (r, f) =>
+const matchesFilters = (r, f, status) =>
+  (!f.usage.length      || f.usage.some((k) => status[k])) &&
   (!f.protein.length    || f.protein.includes(r.protein)) &&
   (!f.difficulty.length || f.difficulty.includes(r.difficulty)) &&
   (!f.time.length       || f.time.includes(timeBucket(r.total_minutes))) &&
@@ -62,7 +73,7 @@ export default function RecipeLibrary({ recipes, mealPlan, groceryItems, showToa
     const list = recipes.filter((r) =>
       (!q || r.name?.toLowerCase().includes(q)) &&
       (!inSeasonNow || isInSeason(r, SEASON_NOW)) &&
-      matchesFilters(r, filters)
+      matchesFilters(r, filters, usageStatus(usage[r.id]))
     );
     const byName = (a, b) => (a.name || "").localeCompare(b.name || "");
     if (sort === "most") {
@@ -305,10 +316,7 @@ export default function RecipeLibrary({ recipes, mealPlan, groceryItems, showToa
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={styles.cardName}>{r.name}</div>
                 <RecipeTags recipe={r} />
-                <div style={{
-                  ...styles.usage,
-                  color: usage[r.id]?.count ? "#4A7C24" : "#b0aa9c",
-                }}>{usageLabel(usage[r.id])}</div>
+                <UsageLine usage={usage[r.id]} style={{ marginTop: 7 }} />
               </div>
             </button>
           ))}
@@ -378,7 +386,6 @@ const styles = {
     textAlign: "left", cursor: "pointer", fontFamily: font,
   },
   cardName: { fontSize: 15, fontWeight: 700, color: "#222", marginBottom: 6, letterSpacing: "-0.01em", lineHeight: 1.3 },
-  usage: { fontSize: 12, fontWeight: 600, marginTop: 7 },
   bottomBar: {
     position: "fixed", bottom: 0, left: 0, right: 0,
     background: "rgba(247,246,241,0.92)",

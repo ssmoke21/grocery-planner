@@ -1,3 +1,5 @@
+import { FAVORITE_MIN_TIMES, NOT_IN_A_WHILE_DAYS } from "./constants.js";
+
 // "YYYY-MM-DD" → local Date (avoids the UTC off-by-one-day problem).
 export const parseDay = (s) => {
   const [y, m, d] = s.split("-").map(Number);
@@ -26,18 +28,30 @@ export const currentSeason = (date = new Date()) => {
 export const isInSeason = (recipe, season) =>
   !recipe.seasons?.length || recipe.seasons.includes(season);
 
-// Build { [recipeId]: { count, last } } from meal_plan entries.
-// `last` is the most recent week_start ("YYYY-MM-DD") or null.
+// Build { [recipeId]: { count, last, weeks } } from meal_plan entries.
+// `last` is the most recent week_start ("YYYY-MM-DD"); `weeks` is newest first.
 export const buildUsage = (mealPlan) => {
   const usage = {};
   mealPlan.forEach(({ recipe_id, week_start }) => {
     if (!recipe_id || !week_start) return;
-    const u = usage[recipe_id] || (usage[recipe_id] = { count: 0, last: null });
+    const u = usage[recipe_id] || (usage[recipe_id] = { count: 0, last: null, weeks: [] });
     u.count += 1;
+    u.weeks.push(week_start);
     if (!u.last || week_start > u.last) u.last = week_start;
   });
+  Object.values(usage).forEach((u) => u.weeks.sort().reverse());
   return usage;
 };
+
+export const daysSince = (day, today = new Date()) =>
+  Math.floor((new Date(today.getFullYear(), today.getMonth(), today.getDate()) - parseDay(day)) / 86400000);
+
+// Which usage filters a recipe falls under: favorite / never / stale ("not in a while").
+export const usageStatus = (u) => ({
+  favorite: (u?.count || 0) >= FAVORITE_MIN_TIMES,
+  never:    !u?.count,
+  stale:    !!u?.count && daysSince(u.last) >= NOT_IN_A_WHILE_DAYS,
+});
 
 export const usageLabel = (u) =>
   u?.count ? `Made ${u.count}× · last ${formatShortDate(u.last)}` : "Never made";

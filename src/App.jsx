@@ -8,7 +8,7 @@ import { SECTION_ORDER, SECTION_ICONS } from "./sections.js";
 import { useRecipeData } from "./recipes/useRecipeData.js";
 import RecipeLibrary from "./recipes/RecipeLibrary.jsx";
 import WeekPlan from "./recipes/WeekPlan.jsx";
-import { weekStart, formatWeekRange } from "./recipes/utils.js";
+import { weekStart, formatWeekRange, buildUsage, usageStatus } from "./recipes/utils.js";
 import "./App.css";
 
 const FREQ_COLORS = {
@@ -230,6 +230,8 @@ export default function App() {
   const isWeek    = tab === "week";
   const thisWeek  = weekStart(0);
   const plannedThisWeek = mealPlan.filter((m) => m.week_start === thisWeek).length;
+  const usage = buildUsage(mealPlan);
+  const favoriteCount = recipes.filter((r) => usageStatus(usage[r.id]).favorite).length;
 
   // ── LOADING ─────────────────────────────────────────────────
   if (loading) {
@@ -284,6 +286,7 @@ export default function App() {
               <h1 style={styles.title}>What's for dinner?</h1>
               <div style={styles.subtitle}>
                 {recipes.length} recipe{recipes.length !== 1 ? "s" : ""}
+                {favoriteCount > 0 && ` · ⭐ ${favoriteCount} favorite${favoriteCount !== 1 ? "s" : ""}`}
               </div>
             </div>
           </div>

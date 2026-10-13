@@ -4,7 +4,7 @@ import { timeBucket } from "./utils.js";
 import { normalizeRecipe, guessSection } from "./normalize.js";
 import { createRecipe, updateRecipe } from "./recipeApi.js";
 import { SECTION_ORDER, SECTION_ICONS } from "../sections.js";
-import { ui, chipStyle, font, BROWN, useBodyScrollLock } from "./ui.js";
+import { ui, chipStyle, font, BROWN, useBodyScrollLock, useBackToClose } from "./ui.js";
 
 const T = byKey(TIME_BUCKETS);
 let keySeq = 0;
@@ -30,6 +30,7 @@ const toForm = (r = {}) => ({
 
 export default function RecipeForm({ initial, groceryItems, onCancel, onSaved, showToast }) {
   useBodyScrollLock();
+  useBackToClose(() => cancel());
   const isEdit = !!initial?.id;
   const [form, setForm]     = useState(() => toForm(initial));
   const [saving, setSaving] = useState(false);
@@ -77,7 +78,7 @@ export default function RecipeForm({ initial, groceryItems, onCancel, onSaved, s
   };
 
   const cancel = () => {
-    if (JSON.stringify(form) !== startJson.current && !window.confirm("Discard your changes?")) return;
+    if (JSON.stringify(form) !== startJson.current && !window.confirm("Discard your changes?")) return false;
     onCancel();
   };
 

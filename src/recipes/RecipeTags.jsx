@@ -1,5 +1,5 @@
 import { PROTEINS, DIFFICULTIES, TIME_BUCKETS, byKey } from "./constants.js";
-import { timeBucket } from "./utils.js";
+import { timeBucket, usageStatus, usageLabel } from "./utils.js";
 
 const P = byKey(PROTEINS);
 const D = byKey(DIFFICULTIES);
@@ -43,5 +43,16 @@ export function RecipeThumb({ recipe, size = 64 }) {
       background: p.tint, display: "flex", alignItems: "center", justifyContent: "center",
       fontSize: size * 0.48,
     }}>{p.icon}</div>
+  );
+}
+
+// "⭐ Made 4× · last Sep 14" — green normally, amber when it's been a while, grey if never.
+export function UsageLine({ usage, style }) {
+  const s = usageStatus(usage);
+  const color = s.never ? "#b0aa9c" : s.stale ? "#b07a1e" : "#4A7C24";
+  return (
+    <div style={{ fontSize: 12, fontWeight: 600, color, ...style }}>
+      {s.favorite && "⭐ "}{usageLabel(usage)}
+    </div>
   );
 }

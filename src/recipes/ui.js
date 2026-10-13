@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 // Shared styles for the recipe sheets (detail, form, import).
 export const font = "'DM Sans', sans-serif";
@@ -69,5 +69,49 @@ export function useBodyScrollLock() {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = prev; };
+  }, []);
+}
+
+// ── Phone back button / swipe-back closes the top sheet ──
+// Each open sheet adds a browser history entry. Back pops it and closes the
+// sheet; closing a sheet with its own button removes the entry quietly.
+const sheetStack = [];
+let ignorePops = 0;
+window.addEventListener("popstate", () => {
+  if (ignorePops > 0) { ignorePops--; return; }
+  const top = sheetStack[sheetStack.length - 1];
+  if (!top) return;
+  top.popped = true;
+  // A sheet can refuse (e.g. "Discard your changes?" → Cancel); restore its entry.
+  if (top.close() === false) {
+    top.popped = false;
+    window.history.pushState({ sheet: true }, "");
+  }
+});
+
+export function useBackToClose(onClose) {
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const entryRef = useRef(null);
+  useEffect(() => {
+    // Cleanup is deferred a tick so a dev-mode StrictMode remount reuses the
+    // same history entry instead of pushing and popping one.
+    const entry = entryRef.current;
+    if (entry?.pendingRemoval) {
+      clearTimeout(entry.pendingRemoval);
+      entry.pendingRemoval = null;
+    } else {
+      entryRef.current = { close: () => closeRef.current(), popped: false, pendingRemoval: null };
+      sheetStack.push(entryRef.current);
+      window.history.pushState({ sheet: true }, "");
+    }
+    const current = entryRef.current;
+    return () => {
+      current.pendingRemoval = setTimeout(() => {
+        sheetStack.splice(sheetStack.indexOf(current), 1);
+        entryRef.current = null;
+        if (!current.popped) { ignorePops++; window.history.back(); }
+      }, 0);
+    };
   }, []);
 }

@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { COOK_METHODS, SEASONS, byKey } from "./constants.js";
-import { usageLabel, formatQty, formatMinutes } from "./utils.js";
+import { formatQty, formatMinutes, formatShortDate } from "./utils.js";
 import { SECTION_ICONS } from "../sections.js";
-import RecipeTags, { RecipeThumb, Tag } from "./RecipeTags.jsx";
-import { ui, font, BROWN, useBodyScrollLock } from "./ui.js";
+import RecipeTags, { RecipeThumb, Tag, UsageLine } from "./RecipeTags.jsx";
+import { ui, font, BROWN, useBodyScrollLock, useBackToClose } from "./ui.js";
 
 const M = byKey(COOK_METHODS);
 const S = byKey(SEASONS);
@@ -13,6 +13,7 @@ export default function RecipeDetail({
   backLabel = "← Recipes", planned, planLabel = "this week", onTogglePlan,
 }) {
   useBodyScrollLock();
+  useBackToClose(onClose);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting]           = useState(false);
 
@@ -42,10 +43,7 @@ export default function RecipeDetail({
           <RecipeThumb recipe={recipe} size={72} />
           <div style={{ minWidth: 0 }}>
             <h2 style={styles.name}>{recipe.name}</h2>
-            <div style={{
-              fontSize: 12, fontWeight: 600, marginTop: 4,
-              color: usage?.count ? "#4A7C24" : "#b0aa9c",
-            }}>{usageLabel(usage)}</div>
+            <UsageLine usage={usage} style={{ marginTop: 4 }} />
           </div>
         </div>
 
@@ -115,6 +113,15 @@ export default function RecipeDetail({
           </a>
         )}
 
+        {usage?.weeks?.length > 0 && (
+          <>
+            <div style={ui.sectionLabel}>Weeks made</div>
+            <div style={styles.history}>
+              {usage.weeks.map((w, i) => <Tag key={w + i}>{formatShortDate(w)}</Tag>)}
+            </div>
+          </>
+        )}
+
         {onDelete && (
           <button className="secondary-btn" onClick={() => setConfirmDelete(true)} style={styles.deleteBtn}>
             🗑️ Delete recipe
@@ -148,6 +155,7 @@ const styles = {
     fontFamily: "'Fraunces', serif", fontSize: 24, margin: 0, color: "#1a1a1a",
     fontWeight: 500, fontStyle: "italic", letterSpacing: "-0.01em", lineHeight: 1.15,
   },
+  history: { display: "flex", flexWrap: "wrap", gap: 6 },
   planBtn: {
     display: "block", width: "100%", marginTop: 16, padding: "14px", borderRadius: 12,
     fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,

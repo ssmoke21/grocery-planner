@@ -2,12 +2,13 @@ import { useState, useMemo } from "react";
 import { combineIngredients, formatAmounts, planGroceryWrites } from "./combine.js";
 import { applyGroceryWrites } from "./recipeApi.js";
 import { SECTION_ICONS } from "../sections.js";
-import { ui, font, useBodyScrollLock } from "./ui.js";
+import { ui, font, useBodyScrollLock, useBackToClose } from "./ui.js";
 
 const GREEN = "#4A7C24";
 
 export default function GroceryReview({ recipes, groceryItems, onClose, onAdded, showToast }) {
   useBodyScrollLock();
+  useBackToClose(onClose);
   const [have, setHave]     = useState(() => new Set());
   const [saving, setSaving] = useState(false);
 
