@@ -1,19 +1,23 @@
-import { useEffect } from "react";
+import { useState } from "react";
 import { COOK_METHODS, SEASONS, byKey } from "./constants.js";
 import { usageLabel, formatQty, formatMinutes } from "./utils.js";
 import { SECTION_ICONS } from "../sections.js";
 import RecipeTags, { RecipeThumb, Tag } from "./RecipeTags.jsx";
+import { ui, font, BROWN, useBodyScrollLock } from "./ui.js";
 
 const M = byKey(COOK_METHODS);
 const S = byKey(SEASONS);
 
-export default function RecipeDetail({ recipe, usage, onClose }) {
-  // Stop the list behind from scrolling while the detail sheet is open.
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, []);
+export default function RecipeDetail({ recipe, usage, onClose, onEdit, onDelete }) {
+  useBodyScrollLock();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting]           = useState(false);
+
+  // On success the recipe vanishes from the live list, which closes this sheet.
+  const doDelete = async () => {
+    setDeleting(true);
+    if (!(await onDelete())) setDeleting(false);
+  };
 
   const ingredients = recipe.ingredients || [];
   const facts = [
@@ -22,12 +26,13 @@ export default function RecipeDetail({ recipe, usage, onClose }) {
   ].filter(Boolean);
 
   return (
-    <div className="sheet-anim" style={styles.sheet}>
-      <div style={styles.topBar}>
-        <button className="secondary-btn" onClick={onClose} style={styles.backBtn}>← Recipes</button>
+    <div className="sheet-anim" style={ui.sheet}>
+      <div style={ui.topBar}>
+        <button className="secondary-btn" onClick={onClose} style={ui.backBtn}>← Recipes</button>
+        <button className="secondary-btn" onClick={onEdit} style={{ ...ui.backBtn, color: BROWN }}>✏️ Edit</button>
       </div>
 
-      <div style={styles.body}>
+      <div style={ui.body}>
         <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 14 }}>
           <RecipeThumb recipe={recipe} size={72} />
           <div style={{ minWidth: 0 }}>
@@ -50,8 +55,8 @@ export default function RecipeDetail({ recipe, usage, onClose }) {
         </div>
 
         {/* ── Ingredients ── */}
-        <div style={styles.sectionLabel}>Ingredients</div>
-        <div style={styles.card}>
+        <div style={ui.sectionLabel}>Ingredients</div>
+        <div style={ui.card}>
           {ingredients.length === 0 ? (
             <div style={{ padding: "14px 16px", fontSize: 13, color: "#aaa" }}>No ingredients saved.</div>
           ) : ingredients.map((ing, idx) => (
@@ -74,15 +79,15 @@ export default function RecipeDetail({ recipe, usage, onClose }) {
 
         {recipe.instructions && (
           <>
-            <div style={styles.sectionLabel}>Instructions</div>
-            <div style={{ ...styles.card, ...styles.textBlock }}>{recipe.instructions}</div>
+            <div style={ui.sectionLabel}>Instructions</div>
+            <div style={{ ...ui.card, ...styles.textBlock }}>{recipe.instructions}</div>
           </>
         )}
 
         {recipe.notes && (
           <>
-            <div style={styles.sectionLabel}>Notes</div>
-            <div style={{ ...styles.card, ...styles.textBlock, background: "#FFFBEF" }}>{recipe.notes}</div>
+            <div style={ui.sectionLabel}>Notes</div>
+            <div style={{ ...ui.card, ...styles.textBlock, background: "#FFFBEF" }}>{recipe.notes}</div>
           </>
         )}
 
@@ -91,48 +96,72 @@ export default function RecipeDetail({ recipe, usage, onClose }) {
             View original recipe ↗
           </a>
         )}
+
+        <button className="secondary-btn" onClick={() => setConfirmDelete(true)} style={styles.deleteBtn}>
+          🗑️ Delete recipe
+        </button>
       </div>
+
+      {confirmDelete && (
+        <div className="overlay-anim" style={styles.overlay} onClick={() => !deleting && setConfirmDelete(false)}>
+          <div className="modal-anim" style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>🗑️</div>
+            <h3 style={styles.modalTitle}>Delete this recipe?</h3>
+            <p style={styles.modalBody}>
+              "{recipe.name}" and its "made it" history will be removed from both phones. This can't be undone.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className="secondary-btn" onClick={() => setConfirmDelete(false)} disabled={deleting}
+                style={styles.modalCancel}>Cancel</button>
+              <button className="primary-btn" onClick={doDelete} disabled={deleting}
+                style={styles.modalConfirm}>{deleting ? "Deleting…" : "Delete"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-const font = "'DM Sans', sans-serif";
-
 const styles = {
-  sheet: {
-    position: "fixed", inset: 0, zIndex: 250, overflowY: "auto",
-    background: "#F7F6F1", fontFamily: font,
-    maxWidth: 500, margin: "0 auto",
-  },
-  topBar: {
-    position: "sticky", top: 0, zIndex: 1, padding: "14px 16px 10px",
-    background: "rgba(247,246,241,0.92)",
-    backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
-  },
-  backBtn: {
-    padding: "10px 16px", borderRadius: 10, border: "1.5px solid #e0dfd8",
-    background: "white", color: "#555", fontSize: 14, fontWeight: 600,
-    cursor: "pointer", fontFamily: font,
-  },
-  body: { padding: "4px 16px 40px" },
   name: {
     fontFamily: "'Fraunces', serif", fontSize: 24, margin: 0, color: "#1a1a1a",
     fontWeight: 500, fontStyle: "italic", letterSpacing: "-0.01em", lineHeight: 1.15,
-  },
-  sectionLabel: {
-    fontSize: 13, fontWeight: 700, color: "#8a4a22",
-    letterSpacing: "0.04em", textTransform: "uppercase",
-    padding: "20px 2px 8px",
-  },
-  card: {
-    background: "white", borderRadius: 14, overflow: "hidden",
-    boxShadow: "0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)",
   },
   ingRow: { display: "flex", alignItems: "center", gap: 12, padding: "12px 16px" },
   textBlock: { padding: "14px 16px", fontSize: 14, color: "#333", lineHeight: 1.65, whiteSpace: "pre-wrap" },
   sourceLink: {
     display: "block", marginTop: 20, padding: "14px", borderRadius: 12,
     background: "white", border: "1.5px solid #e0dfd8", textAlign: "center",
-    color: "#8a4a22", fontSize: 14, fontWeight: 700, textDecoration: "none",
+    color: BROWN, fontSize: 14, fontWeight: 700, textDecoration: "none",
+  },
+  deleteBtn: {
+    display: "block", width: "100%", marginTop: 28, padding: "14px", borderRadius: 12,
+    border: "1.5px solid #f0d4d0", background: "transparent",
+    color: "#b3261e", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: font,
+  },
+  overlay: {
+    position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 20,
+  },
+  modal: {
+    background: "white", borderRadius: 20, padding: "28px 24px",
+    maxWidth: 320, width: "100%", textAlign: "center",
+    boxShadow: "0 24px 60px rgba(0,0,0,0.18)",
+  },
+  modalTitle: {
+    margin: "0 0 10px", fontSize: 18,
+    fontFamily: "'Fraunces', serif", fontWeight: 500, fontStyle: "italic", color: "#1a1a1a",
+  },
+  modalBody: { fontSize: 13, color: "#888", margin: "0 0 22px", lineHeight: 1.6 },
+  modalCancel: {
+    flex: 1, padding: "12px", borderRadius: 10,
+    border: "1.5px solid #e0dfd8", background: "white",
+    color: "#888", fontSize: 14, cursor: "pointer", fontFamily: font,
+  },
+  modalConfirm: {
+    flex: 1, padding: "12px", borderRadius: 10, border: "none",
+    background: "#b3261e", color: "white", fontSize: 14, fontWeight: 700,
+    cursor: "pointer", fontFamily: font,
   },
 };

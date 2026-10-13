@@ -8,6 +8,9 @@ import { timeBucket, currentSeason, isInSeason, buildUsage, usageLabel } from ".
 import { SAMPLE_RECIPES } from "./sampleRecipes.js";
 import RecipeTags, { RecipeThumb } from "./RecipeTags.jsx";
 import RecipeDetail from "./RecipeDetail.jsx";
+import RecipeForm from "./RecipeForm.jsx";
+import ImportRecipes from "./ImportRecipes.jsx";
+import { deleteRecipe } from "./recipeApi.js";
 
 const EMPTY_FILTERS = { protein: [], difficulty: [], time: [], method: [], season: [] };
 
@@ -30,7 +33,7 @@ const matchesFilters = (r, f) =>
   (!f.method.length     || f.method.some((m) => r.cook_methods?.includes(m))) &&
   (!f.season.length     || f.season.some((s) => isInSeason(r, s)));
 
-export default function RecipeLibrary({ recipes, mealPlan, showToast }) {
+export default function RecipeLibrary({ recipes, mealPlan, groceryItems, showToast }) {
   const [search, setSearch]       = useState("");
   const [filters, setFilters]     = useState(EMPTY_FILTERS);
   const [inSeasonNow, setInSeasonNow] = useState(false);
@@ -38,6 +41,8 @@ export default function RecipeLibrary({ recipes, mealPlan, showToast }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [openId, setOpenId]       = useState(null);
   const [seeding, setSeeding]     = useState(false);
+  const [editing, setEditing]     = useState(null); // null | {} (new) | recipe
+  const [importing, setImporting] = useState(false);
 
   const usage = useMemo(() => buildUsage(mealPlan), [mealPlan]);
 
@@ -95,6 +100,59 @@ export default function RecipeLibrary({ recipes, mealPlan, showToast }) {
 
   const openRecipe = recipes.find((r) => r.id === openId);
 
+  const handleDelete = async () => {
+    try {
+      await deleteRecipe(openRecipe.id, mealPlan);
+      showToast(`Deleted "${openRecipe.name}"`);
+      setOpenId(null);
+      return true;
+    } catch (e) {
+      console.error(e);
+      showToast("Couldn't delete — check your connection");
+      return false;
+    }
+  };
+
+  // Sheets and the bottom bar render the same whether or not the library is empty.
+  const overlays = (
+    <>
+      {openRecipe && (
+        <RecipeDetail
+          recipe={openRecipe}
+          usage={usage[openRecipe.id]}
+          onClose={() => setOpenId(null)}
+          onEdit={() => setEditing(openRecipe)}
+          onDelete={handleDelete}
+        />
+      )}
+      {editing && (
+        <RecipeForm
+          initial={editing}
+          groceryItems={groceryItems}
+          showToast={showToast}
+          onCancel={() => setEditing(null)}
+          onSaved={(id) => { setEditing(null); setOpenId(id); }}
+        />
+      )}
+      {importing && (
+        <ImportRecipes
+          recipes={recipes}
+          groceryItems={groceryItems}
+          showToast={showToast}
+          onClose={() => setImporting(false)}
+        />
+      )}
+      <div style={styles.bottomBar}>
+        <button className="secondary-btn" onClick={() => setImporting(true)} style={styles.secondaryBtn}>
+          Import
+        </button>
+        <button className="primary-btn" onClick={() => setEditing({})} style={styles.primaryBtn}>
+          + New Recipe
+        </button>
+      </div>
+    </>
+  );
+
   // ── Empty library ──
   if (recipes.length === 0) {
     return (
@@ -111,7 +169,11 @@ export default function RecipeLibrary({ recipes, mealPlan, showToast }) {
             disabled={seeding}
             style={styles.sampleBtn}
           >{seeding ? "Adding…" : "Load 4 sample recipes"}</button>
+          <p style={{ fontSize: 13, color: "#aaa", margin: "18px 0 0" }}>
+            …or add your own with the buttons below.
+          </p>
         </div>
+        {overlays}
       </div>
     );
   }
@@ -238,13 +300,7 @@ export default function RecipeLibrary({ recipes, mealPlan, showToast }) {
         </div>
       )}
 
-      {openRecipe && (
-        <RecipeDetail
-          recipe={openRecipe}
-          usage={usage[openRecipe.id]}
-          onClose={() => setOpenId(null)}
-        />
-      )}
+      {overlays}
     </div>
   );
 }
@@ -308,4 +364,23 @@ const styles = {
   },
   cardName: { fontSize: 15, fontWeight: 700, color: "#222", marginBottom: 6, letterSpacing: "-0.01em", lineHeight: 1.3 },
   usage: { fontSize: 12, fontWeight: 600, marginTop: 7 },
+  bottomBar: {
+    position: "fixed", bottom: 0, left: 0, right: 0,
+    background: "rgba(247,246,241,0.92)",
+    backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
+    borderTop: "1px solid rgba(0,0,0,0.07)",
+    padding: "10px 16px 16px", display: "flex", gap: 10, justifyContent: "center",
+    zIndex: 100, maxWidth: 500, margin: "0 auto",
+    boxShadow: "0 -4px 20px rgba(0,0,0,0.05)",
+  },
+  secondaryBtn: {
+    flex: 1, padding: "13px", borderRadius: 12,
+    border: "1.5px solid #e0dfd8", background: "white",
+    color: "#888", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font,
+  },
+  primaryBtn: {
+    flex: 2, padding: "13px", borderRadius: 12, border: "none",
+    background: "linear-gradient(135deg, #5a2c14 0%, #8a4a22 100%)",
+    color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,
+  },
 };

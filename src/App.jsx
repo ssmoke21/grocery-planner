@@ -247,7 +247,7 @@ export default function App() {
 
   // ── MAIN ────────────────────────────────────────────────────
   return (
-    <div style={{ ...styles.container, paddingBottom: isList ? 96 : 24 }}>
+    <div style={{ ...styles.container, paddingBottom: 96 }}>
 
       {/* ── HEADER ── */}
       <div style={{
@@ -342,7 +342,7 @@ export default function App() {
       {isRecipes && (
         recipesLoading
           ? <div style={styles.emptyState}>Loading recipes…</div>
-          : <RecipeLibrary recipes={recipes} mealPlan={mealPlan} showToast={showToast} />
+          : <RecipeLibrary recipes={recipes} mealPlan={mealPlan} groceryItems={items} showToast={showToast} />
       )}
 
       {/* ── PLAN MODE ── */}

@@ -42,11 +42,32 @@ export const buildUsage = (mealPlan) => {
 export const usageLabel = (u) =>
   u?.count ? `Made ${u.count}× · last ${formatShortDate(u.last)}` : "Never made";
 
-export const formatQty = (qty, unit) => [qty, unit].filter((v) => v || v === 0).join(" ");
+// 0.5 → "½", 1.5 → "1½", 0.333 → "⅓"; other decimals stay as-is.
+const FRACTIONS = [[0.25, "¼"], [0.333, "⅓"], [0.5, "½"], [0.667, "⅔"], [0.75, "¾"]];
+export const prettyNumber = (n) => {
+  if (typeof n !== "number") return n;
+  const whole = Math.floor(n);
+  const frac = FRACTIONS.find(([v]) => Math.abs(n - whole - v) < 0.01);
+  if (frac) return `${whole || ""}${frac[1]}`;
+  return String(Math.round(n * 100) / 100);
+};
+
+export const formatQty = (qty, unit) =>
+  [qty || qty === 0 ? prettyNumber(qty) : null, unit].filter(Boolean).join(" ");
 
 // 45 → "45 min", 60 → "1 hr", 75 → "1 hr 15 min"
 export const formatMinutes = (m) => {
   if (m < 60) return `${m} min`;
   const h = Math.floor(m / 60), rest = m % 60;
   return rest ? `${h} hr ${rest} min` : `${h} hr`;
+};
+
+// Matching key for ingredient / grocery names: case-insensitive, trims
+// simple plurals ("onions" → "onion", "tomatoes" → "tomato", "berries" → "berry").
+export const nameKey = (name) => {
+  let s = String(name || "").toLowerCase().trim().replace(/\s+/g, " ");
+  if (s.length > 4 && s.endsWith("ies")) s = s.slice(0, -3) + "y";
+  else if (s.length > 4 && s.endsWith("oes")) s = s.slice(0, -2);
+  else if (s.length > 3 && s.endsWith("s") && !/(ss|us|is)$/.test(s)) s = s.slice(0, -1);
+  return s;
 };
