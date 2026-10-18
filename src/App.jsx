@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { db } from "./firebase.js";
 import {
-  collection, doc, addDoc, updateDoc, deleteDoc,
+  doc, addDoc, updateDoc, deleteDoc, setDoc,
   writeBatch, onSnapshot, serverTimestamp,
 } from "firebase/firestore";
+import { hCol, hDoc } from "./household.js";
+import HouseholdSheet from "./HouseholdSheet.jsx";
 import { SECTION_ORDER, SECTION_ICONS } from "./sections.js";
 import { useRecipeData } from "./recipes/useRecipeData.js";
 import RecipeLibrary from "./recipes/RecipeLibrary.jsx";
@@ -29,14 +31,15 @@ const readTab = () => {
   try { return localStorage.getItem("tab") || "list"; } catch { return "list"; }
 };
 
-export default function App() {
+export default function App({ household, onLeaveHousehold }) {
+  const code = household.code;
   const [tab, setTabState]            = useState(readTab);
   const setTab = (t) => {
     setTabState(t);
     window.scrollTo(0, 0);
     try { localStorage.setItem("tab", t); } catch { /* private mode */ }
   };
-  const { recipes, mealPlan, loading: recipesLoading } = useRecipeData();
+  const { recipes, mealPlan, profiles, loading: recipesLoading } = useRecipeData(code);
   const [items, setItems]             = useState([]);
   const [mode, setMode]               = useState("plan");
   const [loading, setLoading]         = useState(true);
@@ -49,6 +52,7 @@ export default function App() {
   const [newItem, setNewItem]         = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [toast, setToast]             = useState(null);
+  const [showHousehold, setShowHousehold] = useState(false);
 
   // Track when both listeners have fired at least once
   const loadedRef = useRef({ items: false, state: false });
@@ -64,7 +68,7 @@ export default function App() {
   // ── Real-time listeners (replaces polling) ──────────────────
   useEffect(() => {
     const itemsUnsub = onSnapshot(
-      collection(db, "grocery_items"),
+      hCol(code, "grocery_items"),
       (snap) => {
         setItems(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
         setError(null);
@@ -79,7 +83,7 @@ export default function App() {
     );
 
     const stateUnsub = onSnapshot(
-      doc(db, "app_state", "main"),
+      hDoc(code, "app_state", "main"),
       (snap) => {
         if (snap.exists()) setMode(snap.data().mode || "plan");
         loadedRef.current.state = true;
@@ -102,7 +106,7 @@ export default function App() {
     // Optimistic update for instant UI response
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...updates } : i)));
     try {
-      await updateDoc(doc(db, "grocery_items", id), {
+      await updateDoc(hDoc(code, "grocery_items", id), {
         ...updates,
         updatedAt: serverTimestamp(),
       });
@@ -120,7 +124,7 @@ export default function App() {
   const addCustomItem = async (section) => {
     if (!newItem.trim()) return;
     try {
-      await addDoc(collection(db, "grocery_items"), {
+      await addDoc(hCol(code, "grocery_items"), {
         name: newItem.trim(),
         section,
         is_selected: true,
@@ -139,7 +143,7 @@ export default function App() {
     // Optimistic removal
     setItems((prev) => prev.filter((i) => i.id !== id));
     try {
-      await deleteDoc(doc(db, "grocery_items", id));
+      await deleteDoc(hDoc(code, "grocery_items", id));
     } catch (e) { console.error(e); }
   };
 
@@ -148,9 +152,9 @@ export default function App() {
       const batch = writeBatch(db);
       // Uncheck any already-checked items before entering shop mode
       items.filter((i) => i.is_selected && i.is_checked).forEach((i) => {
-        batch.update(doc(db, "grocery_items", i.id), { is_checked: false });
+        batch.update(hDoc(code, "grocery_items", i.id), { is_checked: false });
       });
-      batch.set(doc(db, "app_state", "main"), { mode: "shop" }, { merge: true });
+      batch.set(hDoc(code, "app_state", "main"), { mode: "shop" }, { merge: true });
       await batch.commit();
       setMode("shop");
     } catch (e) { console.error(e); }
@@ -158,7 +162,8 @@ export default function App() {
 
   const backToPlan = async () => {
     try {
-      await updateDoc(doc(db, "app_state", "main"), { mode: "plan" });
+      // setDoc+merge: a brand-new household has no app_state doc yet.
+      await setDoc(hDoc(code, "app_state", "main"), { mode: "plan" }, { merge: true });
       setMode("plan");
     } catch (e) { console.error(e); }
   };
@@ -173,7 +178,7 @@ export default function App() {
       // Save shopping history
       const sel = items.filter((i) => i.is_selected);
       sel.forEach((i) => {
-        batch.set(doc(collection(db, "shopping_history")), {
+        batch.set(doc(hCol(code, "shopping_history")), {
           item_name: i.name, section: i.section,
           qty: i.qty || "", unit: i.unit || "",
           week_of: weekOf,
@@ -184,16 +189,16 @@ export default function App() {
       // Delete non-staples, reset staples
       items.forEach((i) => {
         if (!i.is_staple) {
-          batch.delete(doc(db, "grocery_items", i.id));
+          batch.delete(hDoc(code, "grocery_items", i.id));
         } else {
-          batch.update(doc(db, "grocery_items", i.id), {
+          batch.update(hDoc(code, "grocery_items", i.id), {
             is_selected: false, is_checked: false,
           });
         }
       });
 
       // Reset app state
-      batch.set(doc(db, "app_state", "main"), { mode: "plan", week_of: weekOf }, { merge: true });
+      batch.set(hDoc(code, "app_state", "main"), { mode: "plan", week_of: weekOf }, { merge: true });
 
       await batch.commit();
       showToast("Fresh week started!");
@@ -208,12 +213,14 @@ export default function App() {
     sectionMap[item.section].push(item);
   });
 
+  // A section shows once it has items — or while someone is adding its first one.
   const allSections = SECTION_ORDER
-    .filter((s) => sectionMap[s]?.length > 0)
+    .filter((s) => sectionMap[s]?.length > 0 || addingTo === s)
     .map((s) => ({
       section: s,
-      items: sectionMap[s].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
+      items: (sectionMap[s] || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
     }));
+  const emptySections = SECTION_ORDER.filter((s) => !sectionMap[s]?.length && addingTo !== s);
   Object.keys(sectionMap).forEach((s) => {
     if (!SECTION_ORDER.includes(s)) allSections.push({ section: s, items: sectionMap[s] });
   });
@@ -269,6 +276,11 @@ export default function App() {
           : "linear-gradient(150deg, #112233 0%, #1e4d7a 100%)",
       }}>
         <div style={styles.headerNoise} />
+        <button
+          className="section-header-btn"
+          onClick={() => setShowHousehold(true)}
+          style={styles.householdChip}
+        >🏠 {household.name} <span style={{ fontSize: 8, opacity: 0.8 }}>▼</span></button>
         {isWeek ? (
           <div style={styles.headerTop}>
             <div>
@@ -363,7 +375,7 @@ export default function App() {
       {isRecipes && (
         recipesLoading
           ? <div style={styles.emptyState}>Loading recipes…</div>
-          : <RecipeLibrary recipes={recipes} mealPlan={mealPlan} groceryItems={items} showToast={showToast} />
+          : <RecipeLibrary household={household} profiles={profiles} recipes={recipes} mealPlan={mealPlan} groceryItems={items} showToast={showToast} />
       )}
 
       {/* ── THIS WEEK ── */}
@@ -371,6 +383,8 @@ export default function App() {
         recipesLoading
           ? <div style={styles.emptyState}>Loading…</div>
           : <WeekPlan
+              code={code}
+              profiles={profiles}
               recipes={recipes}
               mealPlan={mealPlan}
               groceryItems={items}
@@ -547,6 +561,24 @@ export default function App() {
               </div>
             );
           })}
+
+          {emptySections.length > 0 && (
+            <div style={{ marginTop: 18 }}>
+              <div style={styles.otherSectionsLabel}>
+                {allSections.length ? "Add to another section" : "Add your first item"}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {emptySections.map((sec) => (
+                  <button
+                    key={sec}
+                    className="secondary-btn"
+                    onClick={() => { setAddingTo(sec); setNewItem(""); }}
+                    style={styles.sectionChip}
+                  >{SECTION_ICONS[sec] || "📦"} {sec}</button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -697,6 +729,15 @@ export default function App() {
         </div>
       )}
 
+      {showHousehold && (
+        <HouseholdSheet
+          household={household}
+          onClose={() => setShowHousehold(false)}
+          onLeave={onLeaveHousehold}
+          showToast={showToast}
+        />
+      )}
+
       {/* ── TOAST ── */}
       {toast && <div className="toast-popup" style={styles.toast}>{toast}</div>}
     </div>
@@ -721,13 +762,28 @@ const styles = {
     cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600,
   },
   header: {
-    padding: "28px 20px 20px", color: "white",
+    padding: "12px 20px 20px", color: "white",
     position: "sticky", top: 0, zIndex: 100, overflow: "hidden",
   },
   headerNoise: {
     position: "absolute", inset: 0, pointerEvents: "none",
     backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E\")",
     backgroundSize: "200px 200px", opacity: 0.6,
+  },
+  householdChip: {
+    position: "relative", display: "inline-flex", alignItems: "center", gap: 5,
+    margin: "0 0 8px -8px", padding: "4px 8px", borderRadius: 10, border: "none",
+    background: "transparent", color: "white", opacity: 0.75,
+    fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+  },
+  otherSectionsLabel: {
+    fontSize: 11, fontWeight: 700, color: "#a0998a", letterSpacing: "0.06em",
+    textTransform: "uppercase", margin: "0 2px 8px",
+  },
+  sectionChip: {
+    padding: "9px 12px", borderRadius: 18, border: "1.5px dashed #cfcdc2",
+    background: "transparent", color: "#6b6658", fontSize: 13, fontWeight: 600,
+    cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
   },
   headerTop: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative" },
   headerEyebrow: { fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", opacity: 0.6, marginBottom: 4 },

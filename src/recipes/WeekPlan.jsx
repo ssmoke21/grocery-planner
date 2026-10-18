@@ -16,7 +16,7 @@ const WEEKS = [
 const addedAt = (m) => m.createdAt?.toMillis?.() ?? Infinity;
 const byAdded = (a, b) => addedAt(a) - addedAt(b);
 
-export default function WeekPlan({ recipes, mealPlan, groceryItems, showToast, onGoToList }) {
+export default function WeekPlan({ code, profiles = {}, recipes, mealPlan, groceryItems, showToast, onGoToList }) {
   const [offset, setOffset]       = useState(0);
   const [picking, setPicking]     = useState(false);
   const [reviewing, setReviewing] = useState(false);
@@ -36,8 +36,8 @@ export default function WeekPlan({ recipes, mealPlan, groceryItems, showToast, o
   const togglePlan = async (recipe) => {
     const entry = entryFor(recipe.id);
     try {
-      if (entry) await removeFromPlan(entry.id);
-      else await addToPlan(recipe, week);
+      if (entry) await removeFromPlan(code, entry.id);
+      else await addToPlan(code, recipe, week);
     } catch (e) {
       console.error(e);
       showToast("Couldn't update the plan — try again");
@@ -46,7 +46,7 @@ export default function WeekPlan({ recipes, mealPlan, groceryItems, showToast, o
 
   const remove = async (p) => {
     try {
-      await removeFromPlan(p.entry.id);
+      await removeFromPlan(code, p.entry.id);
       showToast(`Removed "${p.recipe.name}"`);
     } catch (e) { console.error(e); }
   };
@@ -140,6 +140,7 @@ export default function WeekPlan({ recipes, mealPlan, groceryItems, showToast, o
           recipe={openRecipe}
           usage={usage[openRecipe.id]}
           backLabel="← This week"
+          ownerName={profiles[openRecipe.owner_id]?.name}
           onClose={() => setOpenId(null)}
           planned={!!entryFor(openRecipe.id)}
           planLabel={offset ? "next week" : "this week"}
@@ -149,6 +150,7 @@ export default function WeekPlan({ recipes, mealPlan, groceryItems, showToast, o
 
       {reviewing && (
         <GroceryReview
+          code={code}
           recipes={planned.map((p) => p.recipe)}
           groceryItems={groceryItems}
           showToast={showToast}

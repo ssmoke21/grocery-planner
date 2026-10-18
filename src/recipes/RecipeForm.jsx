@@ -29,7 +29,7 @@ const toForm = (r = {}) => ({
   })),
 });
 
-export default function RecipeForm({ initial, groceryItems, onCancel, onSaved, showToast }) {
+export default function RecipeForm({ initial, ownerId, groceryItems, onCancel, onSaved, showToast }) {
   useBodyScrollLock();
   useBackToClose(() => cancel());
   const isEdit = !!initial?.id;
@@ -98,7 +98,7 @@ export default function RecipeForm({ initial, groceryItems, onCancel, onSaved, s
         showToast("Recipe saved");
         onSaved(initial.id);
       } else {
-        const id = await createRecipe(recipe);
+        const id = await createRecipe({ ...recipe, owner_id: ownerId });
         showToast(`Added "${recipe.name}"`);
         onSaved(id);
       }

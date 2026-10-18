@@ -11,6 +11,7 @@ const S = byKey(SEASONS);
 export default function RecipeDetail({
   recipe, usage, onClose, onEdit, onDelete,
   backLabel = "← Recipes", planned, planLabel = "this week", onTogglePlan,
+  ownerName, onCopy, hasCopy,
 }) {
   useBodyScrollLock();
   useBackToClose(onClose);
@@ -44,6 +45,7 @@ export default function RecipeDetail({
           <div style={{ minWidth: 0 }}>
             <h2 style={styles.name}>{recipe.name}</h2>
             <UsageLine usage={usage} style={{ marginTop: 4 }} />
+            {ownerName && <div style={styles.from}>from {ownerName}</div>}
           </div>
         </div>
 
@@ -56,6 +58,15 @@ export default function RecipeDetail({
             ? recipe.seasons.map((s) => S[s] && <Tag key={s}>{S[s].icon} {S[s].label}</Tag>)
             : <Tag>🗓 Year-round</Tag>}
         </div>
+
+        {onCopy && (
+          <button className="secondary-btn" onClick={onCopy} style={styles.copyBtn}>
+            {hasCopy ? "✓ You have a copy · open it" : "📋 Save a copy to my recipes"}
+          </button>
+        )}
+        {onCopy && !hasCopy && (
+          <p style={styles.copyHint}>Only {ownerName || "its owner"} can edit this one. A copy is yours to change.</p>
+        )}
 
         {onTogglePlan && (
           <button
@@ -156,6 +167,13 @@ const styles = {
     fontWeight: 500, fontStyle: "italic", letterSpacing: "-0.01em", lineHeight: 1.15,
   },
   history: { display: "flex", flexWrap: "wrap", gap: 6 },
+  from: { fontSize: 12, color: "#a0998a", marginTop: 3, fontWeight: 500 },
+  copyBtn: {
+    display: "block", width: "100%", marginTop: 16, padding: "13px", borderRadius: 12,
+    border: `1.5px solid ${BROWN}55`, background: "white", color: BROWN,
+    fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,
+  },
+  copyHint: { fontSize: 12, color: "#a0998a", margin: "6px 2px 0", textAlign: "center" },
   planBtn: {
     display: "block", width: "100%", marginTop: 16, padding: "14px", borderRadius: 12,
     fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,

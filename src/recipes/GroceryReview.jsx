@@ -6,7 +6,7 @@ import { ui, font, useBodyScrollLock, useBackToClose } from "./ui.js";
 
 const GREEN = "#4A7C24";
 
-export default function GroceryReview({ recipes, groceryItems, onClose, onAdded, showToast }) {
+export default function GroceryReview({ code, recipes, groceryItems, onClose, onAdded, showToast }) {
   useBodyScrollLock();
   useBackToClose(onClose);
   const [have, setHave]     = useState(() => new Set());
@@ -36,7 +36,7 @@ export default function GroceryReview({ recipes, groceryItems, onClose, onAdded,
   const addToList = async () => {
     setSaving(true);
     try {
-      await applyGroceryWrites(planGroceryWrites(needItems));
+      await applyGroceryWrites(code, planGroceryWrites(needItems));
       const n = needItems.length;
       showToast(`Added ${n} item${n !== 1 ? "s" : ""} to your list`);
       onAdded();

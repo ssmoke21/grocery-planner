@@ -32,7 +32,7 @@ const buildPreview = (text, existing, groceryItems) => {
     const { recipe, warnings } = normalizeRecipe(raw, groceryItems);
     if (!recipe.name) return { label: `Recipe #${i + 1}`, skip: "Missing a name", warnings: [] };
     const key = sameName(recipe.name);
-    if (inLibrary.has(key)) return { label: recipe.name, skip: "Already in your library", warnings: [] };
+    if (inLibrary.has(key)) return { label: recipe.name, skip: "You already have a recipe with this name", warnings: [] };
     if (inPaste.has(key)) return { label: recipe.name, skip: "Listed twice in this paste", warnings: [] };
     inPaste.add(key);
     return { label: recipe.name, recipe, warnings };
@@ -40,7 +40,8 @@ const buildPreview = (text, existing, groceryItems) => {
   return { rows };
 };
 
-export default function ImportRecipes({ recipes, groceryItems, onClose, showToast }) {
+// `recipes` = this household's own recipes (duplicates are checked against these).
+export default function ImportRecipes({ recipes, ownerId, groceryItems, onClose, showToast }) {
   useBodyScrollLock();
   useBackToClose(onClose);
   const [text, setText]       = useState("");
@@ -54,7 +55,7 @@ export default function ImportRecipes({ recipes, groceryItems, onClose, showToas
   const doImport = async () => {
     setSaving(true);
     try {
-      await importRecipes(ready.map((r) => r.recipe));
+      await importRecipes(ready.map((r) => ({ ...r.recipe, owner_id: ownerId })));
       showToast(`Imported ${ready.length} recipe${ready.length !== 1 ? "s" : ""}`);
       onClose();
     } catch (e) {

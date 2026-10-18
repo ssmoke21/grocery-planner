@@ -2,3 +2,6 @@ node_modules
 dist
 .env
 .env.local
+
+# Database backups and household links (private)
+backups/
