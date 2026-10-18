@@ -2,9 +2,11 @@
 
 The **Recipes → Import** screen accepts JSON in this format. Paste it, tap **Check** to preview, then tap **Import**. Nothing is saved until you tap Import.
 
-## Quick start: have Claude make the JSON
+## Quick start: have an AI tool make the JSON
 
-Paste this into Claude chat, followed by the recipe text, a website link, or a photo of a recipe card:
+The easiest way: in the app, go to **Recipes → Import** and tap **📋 Copy AI prompt**. It copies an up-to-date prompt. Paste it into Claude, ChatGPT or a similar tool, along with a photo, link or the text of a recipe, then paste the answer back into the Import box. Extra text or ```json formatting around the answer is ignored.
+
+Or paste this version, followed by the recipe text, a website link, or a photo of a recipe card:
 
 > Convert the recipe(s) below into JSON for my grocery app, following this exact format. Output only the JSON array, no commentary.
 >
