@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Each household is a private folder named by its secret code.
+    // You can open one only if you already know its code; listing every
+    // household is never allowed.
+    match /households/{code} {
+      allow get: if true;
+      allow list: if false;
+      // New households can't make themselves admin.
+      allow create: if code.size() >= 12 && request.resource.data.is_admin == false;
+      // Renames are fine; the admin flag and public id can't be changed.
+      allow update: if request.resource.data.is_admin == resource.data.is_admin
+                    && request.resource.data.public_id == resource.data.public_id;
+      allow delete: if true;
+
+      // Everything inside the folder: list, staples, mode, history, meal plan,
+      // and (for the admin household) the household directory.
+      // ({sub} makes this need at least one level below the household, so it
+      // never matches — and never unlocks — the household list itself.)
+      match /{sub}/{rest=**} {
+        allow read, write: if true;
+      }
+    }
+
+    // Public household names, shown as "from [name]" on recipes.
+    match /household_profiles/{id} {
+      allow read, write: if true;
+    }
+
+    // The shared recipe library.
+    match /recipes/{id} {
+      allow read, write: if true;
+    }
+
+    // The pre-household copies of the data: nobody can read them any more.
+    // Deleting is still allowed so they can be cleaned up later.
+    match /{legacy}/{id} {
+      allow delete: if legacy in ["grocery_items", "app_state", "shopping_history", "meal_plan"];
+    }
+  }
+}
