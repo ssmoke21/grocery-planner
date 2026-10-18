@@ -3,7 +3,7 @@
 // someone holding the admin link can list households.
 import { db } from "../firebase.js";
 import {
-  collection, doc, getDocs, query, where, writeBatch,
+  collection, doc, getDocs, query, where, writeBatch, deleteField,
 } from "firebase/firestore";
 import { hCol, hDoc } from "../household.js";
 
@@ -49,6 +49,11 @@ export const deleteHousehold = async (adminCode, adminPublicId, entry, { recipes
     ops.push(recipes === "delete"
       ? (b) => b.delete(d.ref)
       : (b) => b.update(d.ref, { owner_id: adminPublicId }));
+  });
+  const madeIt = await getDocs(query(collection(db, "recipes"), where(`planned_by.${entry.public_id}.count`, ">", 0)));
+  madeIt.docs.forEach((d) => {
+    if (recipes === "delete" && d.data().owner_id === entry.public_id) return; // already being deleted
+    ops.push((b) => b.update(d.ref, { [`planned_by.${entry.public_id}`]: deleteField() }));
   });
   ops.push((b) => b.delete(doc(db, "household_profiles", entry.public_id)));
   ops.push((b) => b.delete(hDoc(adminCode, "directory", entry.code)));

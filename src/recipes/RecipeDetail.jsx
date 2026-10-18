@@ -11,7 +11,7 @@ const S = byKey(SEASONS);
 export default function RecipeDetail({
   recipe, usage, onClose, onEdit, onDelete,
   backLabel = "← Recipes", planned, planLabel = "this week", onTogglePlan,
-  ownerName, onCopy, hasCopy,
+  ownerName, onCopy, hasCopy, othersWhoMade = [],
 }) {
   useBodyScrollLock();
   useBackToClose(onClose);
@@ -122,6 +122,26 @@ export default function RecipeDetail({
           <a href={recipe.source_url} target="_blank" rel="noopener noreferrer" style={styles.sourceLink}>
             View original recipe ↗
           </a>
+        )}
+
+        {othersWhoMade.length > 0 && (
+          <>
+            <div style={ui.sectionLabel}>🔥 Who else makes it</div>
+            <div style={ui.card}>
+              {othersWhoMade.map((o, idx) => (
+                <div key={o.id} style={{
+                  ...styles.ingRow,
+                  borderBottom: idx < othersWhoMade.length - 1 ? "1px solid #f0efe8" : "none",
+                }}>
+                  <span style={{ fontSize: 15 }}>🏠</span>
+                  <span style={{ flex: 1, fontSize: 14, color: "#222", fontWeight: 600 }}>{o.name}</span>
+                  <span style={{ fontSize: 12, color: "#888", fontWeight: 600, whiteSpace: "nowrap" }}>
+                    {o.count}× · last {formatShortDate(o.last)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {usage?.weeks?.length > 0 && (

@@ -384,6 +384,7 @@ export default function App({ household, onLeaveHousehold }) {
           ? <div style={styles.emptyState}>Loading…</div>
           : <WeekPlan
               code={code}
+              publicId={household.public_id}
               profiles={profiles}
               recipes={recipes}
               mealPlan={mealPlan}

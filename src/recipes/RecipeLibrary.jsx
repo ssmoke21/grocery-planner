@@ -7,6 +7,7 @@ import {
 } from "./constants.js";
 import {
   timeBucket, currentSeason, isInSeason, buildUsage, usageStatus, weekStart,
+  othersWhoMade, madeByLabel,
 } from "./utils.js";
 import { SAMPLE_RECIPES } from "./sampleRecipes.js";
 import RecipeTags, { RecipeThumb, UsageLine } from "./RecipeTags.jsx";
@@ -98,7 +99,17 @@ export default function RecipeLibrary({ household, profiles, recipes, mealPlan, 
       matchesFilters(r, filters, usageStatus(usage[r.id]))
     );
     const byName = (a, b) => (a.name || "").localeCompare(b.name || "");
-    if (sort === "most") {
+    if (sort === "popular") {
+      // Most other households first, then most times made by others.
+      const score = (r) => {
+        const o = othersWhoMade(r, myId, profiles);
+        return [o.length, o.reduce((n, x) => n + x.count, 0)];
+      };
+      list.sort((a, b) => {
+        const [ha, ta] = score(a), [hb, tb] = score(b);
+        return hb - ha || tb - ta || byName(a, b);
+      });
+    } else if (sort === "most") {
       list.sort((a, b) => (usage[b.id]?.count || 0) - (usage[a.id]?.count || 0) || byName(a, b));
     } else if (sort === "oldest") {
       // Never made first, then longest since last made.
@@ -110,7 +121,7 @@ export default function RecipeLibrary({ household, profiles, recipes, mealPlan, 
       list.sort(byName);
     }
     return list;
-  }, [recipes, search, filters, inSeasonNow, sort, usage, whose, myId]);
+  }, [recipes, search, filters, inSeasonNow, sort, usage, whose, myId, profiles]);
 
   const loadSamples = async () => {
     setSeeding(true);
@@ -138,8 +149,8 @@ export default function RecipeLibrary({ household, profiles, recipes, mealPlan, 
   const planEntry = openRecipe && mealPlan.find((m) => m.recipe_id === openRecipe.id && m.week_start === thisWeek);
   const togglePlan = async () => {
     try {
-      if (planEntry) await removeFromPlan(code, planEntry.id);
-      else { await addToPlan(code, openRecipe, thisWeek); showToast("Added to this week"); }
+      if (planEntry) await removeFromPlan(code, myId, planEntry, mealPlan);
+      else { await addToPlan(code, myId, openRecipe, thisWeek, mealPlan); showToast("Added to this week"); }
     } catch (e) {
       console.error(e);
       showToast("Couldn't update the plan — try again");
@@ -183,6 +194,7 @@ export default function RecipeLibrary({ household, profiles, recipes, mealPlan, 
           usage={usage[openRecipe.id]}
           onClose={() => setOpenId(null)}
           ownerName={ownerName(openRecipe)}
+          othersWhoMade={othersWhoMade(openRecipe, myId, profiles)}
           onEdit={isMine(openRecipe) ? () => setEditing(openRecipe) : null}
           onDelete={isMine(openRecipe) ? handleDelete : null}
           onCopy={isMine(openRecipe) ? null : handleCopy}
@@ -377,6 +389,10 @@ export default function RecipeLibrary({ household, profiles, recipes, mealPlan, 
                 <div style={styles.cardName}>{r.name}</div>
                 <RecipeTags recipe={r} />
                 <UsageLine usage={usage[r.id]} style={{ marginTop: 7 }} />
+                {sort === "popular" && (() => {
+                  const o = othersWhoMade(r, myId, profiles);
+                  return o.length > 0 && <div style={styles.popular}>🔥 Made by {madeByLabel(o)}</div>;
+                })()}
                 {ownerName(r) && (
                   <div style={styles.from}>from {isMine(r) ? `${ownerName(r)} (you)` : ownerName(r)}</div>
                 )}
@@ -449,6 +465,7 @@ const styles = {
     textAlign: "left", cursor: "pointer", fontFamily: font,
   },
   from: { fontSize: 11, color: "#a0998a", marginTop: 3, fontWeight: 500 },
+  popular: { fontSize: 12, color: "#b5521b", marginTop: 4, fontWeight: 600 },
   segment: { display: "flex", gap: 3, padding: 3, borderRadius: 11, background: "#efede6" },
   segmentBtn: {
     flex: 1, padding: "9px 0", borderRadius: 9, border: "none",

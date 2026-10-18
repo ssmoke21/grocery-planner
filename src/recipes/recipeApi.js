@@ -1,6 +1,6 @@
 import { db } from "../firebase.js";
 import {
-  collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp,
+  collection, doc, addDoc, updateDoc, writeBatch, serverTimestamp, deleteField,
 } from "firebase/firestore";
 import { hCol, hDoc } from "../household.js";
 
@@ -14,7 +14,7 @@ export const createRecipe = async (recipe) => {
 // Makes an editable copy of someone else's recipe, owned by this household.
 export const copyRecipe = (recipe, ownerId) => {
   // eslint-disable-next-line no-unused-vars
-  const { id, createdAt, updatedAt, owner_id, is_sample, ...rest } = recipe;
+  const { id, createdAt, updatedAt, owner_id, is_sample, planned_by, ...rest } = recipe;
   return createRecipe({ ...rest, owner_id: ownerId, copied_from: id });
 };
 
@@ -45,13 +45,33 @@ export const importRecipes = async (recipes) => {
 };
 
 // ── Meal plan ──
-export const addToPlan = (code, recipe, week) =>
-  addDoc(hCol(code, "meal_plan"), {
+// Each recipe also carries a public summary of who has made it, shared among
+// friends for "Popular with others":
+//   planned_by.{household public_id} = { count, last }
+// The meal-plan entries themselves stay private to the household.
+const plannedBySummary = (weeks) =>
+  weeks.length ? { count: weeks.length, last: weeks.reduce((a, b) => (b > a ? b : a)) } : deleteField();
+
+export const addToPlan = async (code, publicId, recipe, week, mealPlan) => {
+  const weeks = [...mealPlan.filter((m) => m.recipe_id === recipe.id).map((m) => m.week_start), week];
+  const batch = writeBatch(db);
+  batch.set(doc(hCol(code, "meal_plan")), {
     recipe_id: recipe.id, recipe_name: recipe.name, week_start: week,
     createdAt: serverTimestamp(),
   });
+  batch.update(doc(db, "recipes", recipe.id), { [`planned_by.${publicId}`]: plannedBySummary(weeks) });
+  await batch.commit();
+};
 
-export const removeFromPlan = (code, entryId) => deleteDoc(hDoc(code, "meal_plan", entryId));
+export const removeFromPlan = async (code, publicId, entry, mealPlan) => {
+  const weeks = mealPlan
+    .filter((m) => m.recipe_id === entry.recipe_id && m.id !== entry.id)
+    .map((m) => m.week_start);
+  const batch = writeBatch(db);
+  batch.delete(hDoc(code, "meal_plan", entry.id));
+  batch.update(doc(db, "recipes", entry.recipe_id), { [`planned_by.${publicId}`]: plannedBySummary(weeks) });
+  await batch.commit();
+};
 
 // ── Grocery list ── (plan comes from planGroceryWrites)
 export const applyGroceryWrites = async (code, { creates, updates }) => {

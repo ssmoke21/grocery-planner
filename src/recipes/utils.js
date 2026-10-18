@@ -132,3 +132,19 @@ export const unitKey = (unit) => {
   else if (u.length > 2 && u.endsWith("s")) u = u.slice(0, -1);
   return UNIT_ALIASES[u] || u;
 };
+
+// Other households that have made a recipe, most-made first:
+// [{ id, name, count, last }]. Reads the public recipe.planned_by summary.
+export const othersWhoMade = (recipe, myId, profiles) =>
+  Object.entries(recipe.planned_by || {})
+    .filter(([id, v]) => id !== myId && profiles[id] && v?.count > 0)
+    .map(([id, v]) => ({ id, name: profiles[id].name, count: v.count, last: v.last }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+// "The Lees" / "The Lees & The Parks" / "The Lees, The Parks +2"
+export const madeByLabel = (others) => {
+  if (!others.length) return "";
+  if (others.length === 1) return others[0].name;
+  if (others.length === 2) return `${others[0].name} & ${others[1].name}`;
+  return `${others[0].name}, ${others[1].name} +${others.length - 2}`;
+};

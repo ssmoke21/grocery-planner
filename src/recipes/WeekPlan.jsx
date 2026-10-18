@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { weekStart, formatWeekRange, buildUsage } from "./utils.js";
+import { weekStart, formatWeekRange, buildUsage, othersWhoMade } from "./utils.js";
 import { addToPlan, removeFromPlan } from "./recipeApi.js";
 import RecipeTags, { RecipeThumb, UsageLine } from "./RecipeTags.jsx";
 import RecipeDetail from "./RecipeDetail.jsx";
@@ -16,7 +16,7 @@ const WEEKS = [
 const addedAt = (m) => m.createdAt?.toMillis?.() ?? Infinity;
 const byAdded = (a, b) => addedAt(a) - addedAt(b);
 
-export default function WeekPlan({ code, profiles = {}, recipes, mealPlan, groceryItems, showToast, onGoToList }) {
+export default function WeekPlan({ code, publicId, profiles = {}, recipes, mealPlan, groceryItems, showToast, onGoToList }) {
   const [offset, setOffset]       = useState(0);
   const [picking, setPicking]     = useState(false);
   const [reviewing, setReviewing] = useState(false);
@@ -36,8 +36,8 @@ export default function WeekPlan({ code, profiles = {}, recipes, mealPlan, groce
   const togglePlan = async (recipe) => {
     const entry = entryFor(recipe.id);
     try {
-      if (entry) await removeFromPlan(code, entry.id);
-      else await addToPlan(code, recipe, week);
+      if (entry) await removeFromPlan(code, publicId, entry, mealPlan);
+      else await addToPlan(code, publicId, recipe, week, mealPlan);
     } catch (e) {
       console.error(e);
       showToast("Couldn't update the plan — try again");
@@ -46,7 +46,7 @@ export default function WeekPlan({ code, profiles = {}, recipes, mealPlan, groce
 
   const remove = async (p) => {
     try {
-      await removeFromPlan(code, p.entry.id);
+      await removeFromPlan(code, publicId, p.entry, mealPlan);
       showToast(`Removed "${p.recipe.name}"`);
     } catch (e) { console.error(e); }
   };
@@ -141,6 +141,7 @@ export default function WeekPlan({ code, profiles = {}, recipes, mealPlan, groce
           usage={usage[openRecipe.id]}
           backLabel="← This week"
           ownerName={profiles[openRecipe.owner_id]?.name}
+          othersWhoMade={othersWhoMade(openRecipe, publicId, profiles)}
           onClose={() => setOpenId(null)}
           planned={!!entryFor(openRecipe.id)}
           planLabel={offset ? "next week" : "this week"}
