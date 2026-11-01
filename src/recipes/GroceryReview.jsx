@@ -1,20 +1,23 @@
 import { useState, useMemo } from "react";
-import { combineIngredients, formatAmounts, planGroceryWrites } from "./combine.js";
-import { applyGroceryWrites } from "./recipeApi.js";
+import { combineIngredients, formatAmounts, planListWrites } from "./combine.js";
+import { applyGroceryWrites, newGroceryItemId } from "./recipeApi.js";
 import { SECTION_ICONS } from "../sections.js";
 import { ui, font, useBodyScrollLock, useBackToClose } from "./ui.js";
 
 const GREEN = "#4A7C24";
 
-export default function GroceryReview({ code, recipes, groceryItems, onClose, onAdded, showToast }) {
+export default function GroceryReview({ code, week, ledger, recipes, groceryItems, onClose, onAdded, showToast }) {
   useBodyScrollLock();
   useBackToClose(onClose);
-  const [have, setHave]     = useState(() => new Set());
   const [saving, setSaving] = useState(false);
 
-  const { sections, noIngredients } = useMemo(
-    () => combineIngredients(recipes, groceryItems),
-    [recipes, groceryItems]
+  const { sections, noIngredients, alreadyAdded } = useMemo(
+    () => combineIngredients(recipes, groceryItems, { ledger, week }),
+    [recipes, groceryItems, ledger, week]
+  );
+  // Earlier "Have" answers for this week's meals start as Have again.
+  const [have, setHave] = useState(
+    () => new Set(sections.flatMap((s) => s.items).filter((i) => i.startsHave).map((i) => i.key))
   );
   const allItems  = sections.flatMap((s) => s.items);
   const needItems = allItems.filter((i) => !have.has(i.key));
@@ -36,9 +39,12 @@ export default function GroceryReview({ code, recipes, groceryItems, onClose, on
   const addToList = async () => {
     setSaving(true);
     try {
-      await applyGroceryWrites(code, planGroceryWrites(needItems));
+      const haveItems = allItems.filter((i) => have.has(i.key));
+      await applyGroceryWrites(code, planListWrites({
+        needItems, haveItems, week, ledger, groceryItems, makeId: () => newGroceryItemId(code),
+      }));
       const n = needItems.length;
-      showToast(`Added ${n} item${n !== 1 ? "s" : ""} to your list`);
+      showToast(n ? `Added ${n} item${n !== 1 ? "s" : ""} to your list` : "Saved");
       onAdded();
     } catch (e) {
       console.error(e);
@@ -60,6 +66,12 @@ export default function GroceryReview({ code, recipes, groceryItems, onClose, on
           Everything starts as <strong style={{ color: GREEN }}>Need</strong>. Tap anything you already have.
         </p>
 
+        {alreadyAdded > 0 && (
+          <div style={styles.addedNote}>
+            ✓ {alreadyAdded} item{alreadyAdded !== 1 ? "s" : ""} from this plan {alreadyAdded !== 1 ? "are" : "is"} already on your list, so {alreadyAdded !== 1 ? "they" : "it"} won't be added again.
+          </div>
+        )}
+
         {noIngredients.length > 0 && (
           <div style={styles.notice}>
             <div style={{ fontWeight: 700, marginBottom: 4 }}>📝 No ingredients saved — add manually:</div>
@@ -69,7 +81,7 @@ export default function GroceryReview({ code, recipes, groceryItems, onClose, on
 
         {sections.length === 0 && (
           <p style={{ textAlign: "center", color: "#aaa", fontSize: 14, padding: "40px 0" }}>
-            None of these recipes have ingredients saved.
+            {alreadyAdded > 0 ? "Everything for this plan is already handled." : "None of these recipes have ingredients saved."}
           </p>
         )}
 
@@ -136,12 +148,12 @@ export default function GroceryReview({ code, recipes, groceryItems, onClose, on
         <button
           className="primary-btn"
           onClick={addToList}
-          disabled={saving || needItems.length === 0}
-          style={{ ...styles.addBtn, opacity: needItems.length ? 1 : 0.45 }}
+          disabled={saving || allItems.length === 0}
+          style={{ ...styles.addBtn, opacity: allItems.length ? 1 : 0.45 }}
         >
           {saving ? "Adding…"
             : needItems.length ? `Add ${needItems.length} item${needItems.length !== 1 ? "s" : ""} to list`
-            : "Nothing to add"}
+            : allItems.length ? "Save — nothing to add" : "Nothing to add"}
         </button>
       </div>
     </div>
@@ -150,6 +162,10 @@ export default function GroceryReview({ code, recipes, groceryItems, onClose, on
 
 const styles = {
   intro: { fontSize: 14, color: "#666", margin: "2px 2px 6px", lineHeight: 1.5 },
+  addedNote: {
+    marginTop: 10, padding: "12px 14px", borderRadius: 12,
+    background: "#EEF3EA", color: "#2D5016", fontSize: 13, lineHeight: 1.5,
+  },
   notice: {
     marginTop: 10, padding: "12px 14px", borderRadius: 12,
     background: "#FFF6DD", color: "#6b5310", fontSize: 13, lineHeight: 1.6,

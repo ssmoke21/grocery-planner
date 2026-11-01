@@ -24,10 +24,11 @@ const styleOf = (r) => (isSlowCooker(r) ? "slow_cooker" : r.cook_methods?.[0] ||
 const isQuick = (r) => r.total_minutes > 0 && r.total_minutes <= 30;
 
 // Recipes that may be suggested at all.
-export const eligibleDinners = ({ recipes, usage, season }) =>
+export const eligibleDinners = ({ recipes, usage, season, ratingOf = () => null }) =>
   recipes.filter((r) =>
     r.meals?.includes("dinner") &&
     isInSeason(r, season) &&
+    !(ratingOf(r) && ratingOf(r) <= 2) && // you rated it 1–2 stars
     !(usage[r.id]?.last && daysSince(usage[r.id].last) < RECENT_DAYS)
   );
 

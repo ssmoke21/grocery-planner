@@ -1,5 +1,5 @@
 import { PROTEINS, DIFFICULTIES, TIME_BUCKETS, byKey } from "./constants.js";
-import { timeBucket, usageStatus, usageLabel } from "./utils.js";
+import { timeBucket, usageStatus, usageLabel, formatMinutes } from "./utils.js";
 
 const P = byKey(PROTEINS);
 const D = byKey(DIFFICULTIES);
@@ -21,11 +21,27 @@ export function Tag({ children, bg = "#f0efe8", color = "#666" }) {
 }
 
 // Side or dessert · protein · time bucket · difficulty
-export default function RecipeTags({ recipe }) {
+// `text` shows one quiet line (for cards) instead of colored tags.
+export default function RecipeTags({ recipe, text = false, stars = 0 }) {
   const p = P[recipe.protein];
   const t = T[timeBucket(recipe.total_minutes)];
   const d = D[recipe.difficulty];
   const dc = DIFF_COLORS[recipe.difficulty];
+  if (text) {
+    const bits = [
+      recipe.meals?.includes("side") && "🥗 Side",
+      recipe.meals?.includes("dessert") && "🍪 Dessert",
+      p && `${p.icon} ${p.label}`,
+      recipe.total_minutes && formatMinutes(recipe.total_minutes),
+      d?.label,
+    ].filter(Boolean);
+    return (
+      <div style={{ fontSize: 12, color: "#777", fontWeight: 500, lineHeight: 1.45 }}>
+        {stars > 0 && <span style={{ color: "#c98f00", fontWeight: 700 }}>★{stars} · </span>}
+        {bits.join(" · ")}
+      </div>
+    );
+  }
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
       {recipe.meals?.includes("side") && <Tag bg="#E6F2EF" color="#2f6b63">🥗 Side</Tag>}

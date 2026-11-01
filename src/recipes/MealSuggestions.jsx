@@ -18,13 +18,15 @@ export default function MealSuggestions({
   useBackToClose(onClose);
 
   const season = currentSeason(parseDay(week));
+  const ratingOf = (r) => r.ratings?.[publicId];
   const pool = useMemo(
-    () => eligibleDinners({ recipes, usage, season }),
+    () => eligibleDinners({ recipes, usage, season, ratingOf }),
     // Keep the pool steady while this screen is open, so adding a meal
     // doesn't change what's on offer. eslint-disable-next-line
     [] // eslint-disable-line react-hooks/exhaustive-deps
   );
-  const popularity = (r) => othersWhoMade(r, publicId, profiles).length;
+  // Friends making it and your own stars both nudge a recipe up.
+  const popularity = (r) => othersWhoMade(r, publicId, profiles).length + ((ratingOf(r) || 3) - 3);
 
   // Ids already shown, so Swap and Shuffle bring something different.
   const seen = useRef(new Set());
@@ -175,7 +177,8 @@ export default function MealSuggestions({
           othersWhoMade={othersWhoMade(open, publicId, profiles)}
           planned={isPlanned(open.id)}
           planLabel={weekLabel}
-          onTogglePlan={() => onToggle(open)}
+          onTogglePlan={(scale) => onToggle(open, scale)}
+          myId={publicId}
           onClose={() => setOpenId(null)}
         />
       )}

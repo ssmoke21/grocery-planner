@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { weekStart, formatWeekRange, buildUsage, othersWhoMade } from "./utils.js";
-import { addToPlan, removeFromPlan } from "./recipeApi.js";
+import { addToPlan, setPlanScale } from "./recipeApi.js";
+import { useMealRemoval } from "./MealRemoval.jsx";
 import RecipeTags, { RecipeThumb, UsageLine } from "./RecipeTags.jsx";
 import RecipeDetail from "./RecipeDetail.jsx";
 import GroceryReview from "./GroceryReview.jsx";
@@ -17,7 +18,7 @@ const WEEKS = [
 const addedAt = (m) => m.createdAt?.toMillis?.() ?? Infinity;
 const byAdded = (a, b) => addedAt(a) - addedAt(b);
 
-export default function WeekPlan({ code, publicId, profiles = {}, recipes, mealPlan, groceryItems, showToast, onGoToList }) {
+export default function WeekPlan({ code, publicId, profiles = {}, ledger = [], recipes, mealPlan, groceryItems, showToast, onGoToList }) {
   const [offset, setOffset]       = useState(0);
   const [picking, setPicking]     = useState(false);
   const [suggesting, setSuggesting] = useState(false);
@@ -35,23 +36,20 @@ export default function WeekPlan({ code, publicId, profiles = {}, recipes, mealP
     .map((m) => ({ entry: m, recipe: recipeById[m.recipe_id] }));
   const entryFor = (recipeId) => planned.find((p) => p.recipe.id === recipeId)?.entry;
 
-  const togglePlan = async (recipe) => {
+  const { requestRemove, prompt } = useMealRemoval({ code, publicId, mealPlan, ledger, groceryItems, showToast });
+
+  const togglePlan = async (recipe, scale = 1) => {
     const entry = entryFor(recipe.id);
     try {
-      if (entry) await removeFromPlan(code, publicId, entry, mealPlan);
-      else await addToPlan(code, publicId, recipe, week, mealPlan);
+      if (entry) await requestRemove(entry, recipe);
+      else await addToPlan(code, publicId, recipe, week, mealPlan, scale);
     } catch (e) {
       console.error(e);
       showToast("Couldn't update the plan — try again");
     }
   };
 
-  const remove = async (p) => {
-    try {
-      await removeFromPlan(code, publicId, p.entry, mealPlan);
-      showToast(`Removed "${p.recipe.name}"`);
-    } catch (e) { console.error(e); }
-  };
+  const remove = (p) => requestRemove(p.entry, p.recipe);
 
   const openRecipe = openId && recipeById[openId];
 
@@ -97,6 +95,7 @@ export default function WeekPlan({ code, publicId, profiles = {}, recipes, mealP
                     <RecipeTags recipe={p.recipe} />
                     <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: n ? "#a0998a" : "#c08a1e" }}>
                       {n ? `${n} ingredient${n !== 1 ? "s" : ""}` : "No ingredients saved"}
+                      {p.entry.scale && p.entry.scale !== 1 ? ` · ×${Math.round(p.entry.scale * 100) / 100}` : ""}
                     </div>
                   </div>
                 </button>
@@ -130,6 +129,8 @@ export default function WeekPlan({ code, publicId, profiles = {}, recipes, mealP
           }}
         >🛒 Build grocery list</button>
       </div>
+
+      {prompt}
 
       {suggesting && (
         <MealSuggestions
@@ -167,14 +168,22 @@ export default function WeekPlan({ code, publicId, profiles = {}, recipes, mealP
           onClose={() => setOpenId(null)}
           planned={!!entryFor(openRecipe.id)}
           planLabel={offset ? "next week" : "this week"}
-          onTogglePlan={() => togglePlan(openRecipe)}
+          onTogglePlan={(scale) => togglePlan(openRecipe, scale)}
+          myId={publicId}
+          scale={entryFor(openRecipe.id)?.scale || 1}
+          onScaleChange={(scale) => {
+            const entry = entryFor(openRecipe.id);
+            if (entry) setPlanScale(code, entry.id, scale).catch(console.error);
+          }}
         />
       )}
 
       {reviewing && (
         <GroceryReview
           code={code}
-          recipes={planned.map((p) => p.recipe)}
+          week={week}
+          ledger={ledger}
+          recipes={planned.map((p) => ({ ...p.recipe, scale: p.entry.scale }))}
           groceryItems={groceryItems}
           showToast={showToast}
           onClose={() => setReviewing(false)}

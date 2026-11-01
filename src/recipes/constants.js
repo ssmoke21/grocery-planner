@@ -63,6 +63,7 @@ export const SORTS = [
   { key: "most",   label: "Most made" },
   { key: "oldest", label: "Least recently made" },
   { key: "popular", label: "Popular with others" },
+  { key: "rated", label: "Top rated" },
 ];
 
 // Lookup helpers: byKey(PROTEINS).chicken → { key, label, ... }

@@ -55,6 +55,11 @@ export const deleteHousehold = async (adminCode, adminPublicId, entry, { recipes
     if (recipes === "delete" && d.data().owner_id === entry.public_id) return; // already being deleted
     ops.push((b) => b.update(d.ref, { [`planned_by.${entry.public_id}`]: deleteField() }));
   });
+  const rated = await getDocs(query(collection(db, "recipes"), where(`ratings.${entry.public_id}`, ">", 0)));
+  rated.docs.forEach((d) => {
+    if (recipes === "delete" && d.data().owner_id === entry.public_id) return;
+    ops.push((b) => b.update(d.ref, { [`ratings.${entry.public_id}`]: deleteField() }));
+  });
   ops.push((b) => b.delete(doc(db, "household_profiles", entry.public_id)));
   ops.push((b) => b.delete(hDoc(adminCode, "directory", entry.code)));
   // The household doc goes last so a half-finished delete can simply be retried.

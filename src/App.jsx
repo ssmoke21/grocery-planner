@@ -39,7 +39,7 @@ export default function App({ household, onLeaveHousehold }) {
     window.scrollTo(0, 0);
     try { localStorage.setItem("tab", t); } catch { /* private mode */ }
   };
-  const { recipes, mealPlan, profiles, loading: recipesLoading } = useRecipeData(code);
+  const { recipes, mealPlan, profiles, ledger, loading: recipesLoading } = useRecipeData(code);
   const [items, setItems]             = useState([]);
   const [mode, setMode]               = useState("plan");
   const [loading, setLoading]         = useState(true);
@@ -53,6 +53,20 @@ export default function App({ household, onLeaveHousehold }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [toast, setToast]             = useState(null);
   const [showHousehold, setShowHousehold] = useState(false);
+  const [compact, setCompact] = useState(false);
+  const toastTimer = useRef(null);
+
+  // Shrink the header to just the tabs while scrolling down the page. Different
+  // thresholds stop it flickering, and short pages never shrink.
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY;
+      const room = document.documentElement.scrollHeight - window.innerHeight;
+      setCompact((was) => (was ? y > 10 : y > 80 && room > 220));
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   // Track when both listeners have fired at least once
   const loadedRef = useRef({ items: false, state: false });
@@ -60,9 +74,11 @@ export default function App({ household, onLeaveHousehold }) {
     if (loadedRef.current.items && loadedRef.current.state) setLoading(false);
   };
 
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 2200);
+  // `undo` adds an Undo button and keeps the message up a little longer.
+  const showToast = (msg, undo = null) => {
+    clearTimeout(toastTimer.current);
+    setToast({ msg, undo });
+    toastTimer.current = setTimeout(() => setToast(null), undo ? 5000 : 2200);
   };
 
   // ── Real-time listeners (replaces polling) ──────────────────
@@ -139,11 +155,16 @@ export default function App({ household, onLeaveHousehold }) {
     } catch (e) { console.error(e); }
   };
 
-  const deleteItem = async (id) => {
+  const deleteItem = async (item) => {
+    const { id, ...data } = item;
     // Optimistic removal
     setItems((prev) => prev.filter((i) => i.id !== id));
     try {
       await deleteDoc(hDoc(code, "grocery_items", id));
+      showToast(`Deleted "${item.name}"`, async () => {
+        setToast(null);
+        try { await setDoc(hDoc(code, "grocery_items", id), data); } catch (e) { console.error(e); }
+      });
     } catch (e) { console.error(e); }
   };
 
@@ -196,6 +217,9 @@ export default function App({ household, onLeaveHousehold }) {
           });
         }
       });
+
+      // A new week starts with a clean record of what meals added to the list.
+      batch.delete(hDoc(code, "app_state", "list_ledger"));
 
       // Reset app state
       batch.set(hDoc(code, "app_state", "main"), { mode: "plan", week_of: weekOf }, { merge: true });
@@ -267,6 +291,7 @@ export default function App({ household, onLeaveHousehold }) {
       {/* ── HEADER ── */}
       <div style={{
         ...styles.header,
+        ...(compact ? { padding: "8px 16px 10px" } : {}),
         background: isWeek
           ? "linear-gradient(150deg, #173a36 0%, #2f6b63 100%)"
           : isRecipes
@@ -276,6 +301,7 @@ export default function App({ household, onLeaveHousehold }) {
           : "linear-gradient(150deg, #112233 0%, #1e4d7a 100%)",
       }}>
         <div style={styles.headerNoise} />
+        {!compact && (<>
         <button
           className="section-header-btn"
           onClick={() => setShowHousehold(true)}
@@ -341,6 +367,8 @@ export default function App({ household, onLeaveHousehold }) {
         </div>
         )}
 
+        </>)}
+
         {isList && !isPlan && selectedItems.length > 0 && (
           <div style={styles.progressBg}>
             <div style={{
@@ -354,7 +382,7 @@ export default function App({ household, onLeaveHousehold }) {
         )}
 
         {/* ── TABS ── */}
-        <div style={styles.tabBar}>
+        <div style={{ ...styles.tabBar, ...(compact ? { marginTop: 0 } : {}) }}>
           {TABS.map((t) => (
             <button
               key={t.key}
@@ -375,7 +403,7 @@ export default function App({ household, onLeaveHousehold }) {
       {isRecipes && (
         recipesLoading
           ? <div style={styles.emptyState}>Loading recipes…</div>
-          : <RecipeLibrary household={household} profiles={profiles} recipes={recipes} mealPlan={mealPlan} groceryItems={items} showToast={showToast} />
+          : <RecipeLibrary household={household} profiles={profiles} ledger={ledger} recipes={recipes} mealPlan={mealPlan} groceryItems={items} showToast={showToast} />
       )}
 
       {/* ── THIS WEEK ── */}
@@ -386,6 +414,7 @@ export default function App({ household, onLeaveHousehold }) {
               code={code}
               publicId={household.public_id}
               profiles={profiles}
+              ledger={ledger}
               recipes={recipes}
               mealPlan={mealPlan}
               groceryItems={items}
@@ -523,12 +552,10 @@ export default function App({ household, onLeaveHousehold }) {
                               e.stopPropagation();
                               if (item.is_staple) {
                                 if (window.confirm(`Delete staple "${item.name}"? This can't be undone.`)) {
-                                  deleteItem(item.id);
-                                  showToast(`Deleted "${item.name}"`);
+                                  deleteItem(item);
                                 }
                               } else {
-                                deleteItem(item.id);
-                                showToast(`Deleted "${item.name}"`);
+                                deleteItem(item);
                               }
                             }}
                             style={styles.deleteBtn}
@@ -740,7 +767,12 @@ export default function App({ household, onLeaveHousehold }) {
       )}
 
       {/* ── TOAST ── */}
-      {toast && <div className="toast-popup" style={styles.toast}>{toast}</div>}
+      {toast && (
+        <div className="toast-popup" style={styles.toast}>
+          {toast.msg}
+          {toast.undo && <button onClick={toast.undo} style={styles.undoBtn}>Undo</button>}
+        </div>
+      )}
     </div>
   );
 }
@@ -839,7 +871,7 @@ const styles = {
     background: "white", borderRadius: 14, overflow: "hidden",
     boxShadow: "0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)",
   },
-  itemRow: { display: "flex", alignItems: "center", padding: "12px 14px" },
+  itemRow: { display: "flex", alignItems: "center", padding: "6px 8px 6px 14px" },
   toggle: {
     width: 40, height: 24, borderRadius: 12, border: "none",
     position: "relative", cursor: "pointer", marginRight: 12, flexShrink: 0,
@@ -867,11 +899,15 @@ const styles = {
   },
   qtyPill: {
     background: "#f0efe8", border: "1px solid #e4e2d8", borderRadius: 8,
-    padding: "4px 10px", fontSize: 12, color: "#666", cursor: "pointer",
+    padding: "9px 12px", fontSize: 13, color: "#666", cursor: "pointer",
     fontFamily: "'DM Sans', sans-serif", fontWeight: 600, whiteSpace: "nowrap",
   },
-  stapleBtn: { background: "none", border: "none", fontSize: 14, cursor: "pointer", padding: "2px 4px", lineHeight: 1 },
-  deleteBtn: { background: "none", border: "none", fontSize: 13, cursor: "pointer", padding: "4px 4px", lineHeight: 1, opacity: 0.4 },
+  stapleBtn: { width: 40, height: 40, flexShrink: 0, background: "none", border: "none", fontSize: 16, cursor: "pointer", padding: 0, lineHeight: 1 },
+  deleteBtn: { width: 40, height: 40, flexShrink: 0, marginLeft: 4, background: "none", border: "none", fontSize: 15, cursor: "pointer", padding: 0, lineHeight: 1, opacity: 0.55 },
+  undoBtn: {
+    marginLeft: 14, padding: "6px 10px", border: "none", borderRadius: 8, background: "rgba(255,255,255,0.16)",
+    color: "#ffd66b", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+  },
   addRow: { display: "flex", padding: "8px 14px", gap: 6, borderTop: "1px solid #f0efe8" },
   addInput: {
     flex: 1, border: "1px solid #e4e2d8", borderRadius: 8,

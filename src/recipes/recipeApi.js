@@ -14,7 +14,7 @@ export const createRecipe = async (recipe) => {
 // Makes an editable copy of someone else's recipe, owned by this household.
 export const copyRecipe = (recipe, ownerId) => {
   // eslint-disable-next-line no-unused-vars
-  const { id, createdAt, updatedAt, owner_id, is_sample, planned_by, ...rest } = recipe;
+  const { id, createdAt, updatedAt, owner_id, is_sample, planned_by, ratings, ...rest } = recipe;
   return createRecipe({ ...rest, owner_id: ownerId, copied_from: id });
 };
 
@@ -44,6 +44,8 @@ export const importRecipes = async (recipes) => {
   }
 };
 
+const LEDGER = (code) => hDoc(code, "app_state", "list_ledger");
+
 // ── Meal plan ──
 // Each recipe also carries a public summary of who has made it, shared among
 // friends for "Popular with others":
@@ -52,33 +54,56 @@ export const importRecipes = async (recipes) => {
 const plannedBySummary = (weeks) =>
   weeks.length ? { count: weeks.length, last: weeks.reduce((a, b) => (b > a ? b : a)) } : deleteField();
 
-export const addToPlan = async (code, publicId, recipe, week, mealPlan) => {
+export const addToPlan = async (code, publicId, recipe, week, mealPlan, scale = 1) => {
   const weeks = [...mealPlan.filter((m) => m.recipe_id === recipe.id).map((m) => m.week_start), week];
   const batch = writeBatch(db);
   batch.set(doc(hCol(code, "meal_plan")), {
     recipe_id: recipe.id, recipe_name: recipe.name, week_start: week,
+    ...(scale !== 1 ? { scale } : {}),
     createdAt: serverTimestamp(),
   });
   batch.update(doc(db, "recipes", recipe.id), { [`planned_by.${publicId}`]: plannedBySummary(weeks) });
   await batch.commit();
 };
 
-export const removeFromPlan = async (code, publicId, entry, mealPlan) => {
+// `listPlan` (from planMealRemoval) updates the ledger; with `removeItems` it
+// also takes the meal's items back off the grocery list.
+export const removeFromPlan = async (code, publicId, entry, mealPlan, listPlan = null, removeItems = false) => {
   const weeks = mealPlan
     .filter((m) => m.recipe_id === entry.recipe_id && m.id !== entry.id)
     .map((m) => m.week_start);
   const batch = writeBatch(db);
   batch.delete(hDoc(code, "meal_plan", entry.id));
   batch.update(doc(db, "recipes", entry.recipe_id), { [`planned_by.${publicId}`]: plannedBySummary(weeks) });
+  if (listPlan) {
+    batch.set(LEDGER(code), { entries: listPlan.ledger });
+    if (removeItems) {
+      listPlan.items.forEach((i) => {
+        if (i.remove) batch.delete(hDoc(code, "grocery_items", i.id));
+        else batch.update(hDoc(code, "grocery_items", i.id), { ...i.changes, updatedAt: serverTimestamp() });
+      });
+    }
+  }
   await batch.commit();
 };
 
-// ── Grocery list ── (plan comes from planGroceryWrites)
-export const applyGroceryWrites = async (code, { creates, updates }) => {
+export const setPlanScale = (code, entryId, scale) =>
+  updateDoc(hDoc(code, "meal_plan", entryId), { scale });
+
+// 1–5 stars per household, shared with friends. null clears it.
+export const rateRecipe = (recipeId, publicId, stars) =>
+  updateDoc(doc(db, "recipes", recipeId), { [`ratings.${publicId}`]: stars ?? deleteField() });
+
+// A fresh id for a new grocery item, so the ledger can refer to it.
+export const newGroceryItemId = (code) => doc(hCol(code, "grocery_items")).id;
+
+// plan comes from planListWrites
+export const applyGroceryWrites = async (code, { creates, updates, ledger }) => {
   const batch = writeBatch(db);
-  creates.forEach((item) => {
-    batch.set(doc(hCol(code, "grocery_items")), { ...item, createdAt: serverTimestamp() });
+  creates.forEach(({ id, data }) => {
+    batch.set(hDoc(code, "grocery_items", id), { ...data, createdAt: serverTimestamp() });
   });
+  batch.set(LEDGER(code), { entries: ledger });
   updates.forEach(({ id, changes }) => {
     batch.update(hDoc(code, "grocery_items", id), { ...changes, updatedAt: serverTimestamp() });
   });

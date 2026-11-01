@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useMealRemoval } from "./MealRemoval.jsx";
 import { db } from "../firebase.js";
 import { collection, doc, writeBatch, serverTimestamp } from "firebase/firestore";
 import {
@@ -10,13 +11,13 @@ import {
   othersWhoMade, madeByLabel,
 } from "./utils.js";
 import { SAMPLE_RECIPES } from "./sampleRecipes.js";
-import RecipeTags, { RecipeThumb, UsageLine } from "./RecipeTags.jsx";
+import RecipeMeta, { RecipeThumb, UsageLine } from "./RecipeTags.jsx";
 import RecipeDetail from "./RecipeDetail.jsx";
 import RecipeForm from "./RecipeForm.jsx";
 import ImportRecipes from "./ImportRecipes.jsx";
-import { deleteRecipe, addToPlan, removeFromPlan, copyRecipe } from "./recipeApi.js";
+import { deleteRecipe, addToPlan, copyRecipe, setPlanScale } from "./recipeApi.js";
 
-const EMPTY_FILTERS = { household: [], usage: [], meal: [], protein: [], difficulty: [], time: [], method: [], season: [] };
+const EMPTY_FILTERS = { household: [], usage: [], rating: [], info: [], meal: [], protein: [], difficulty: [], time: [], method: [], season: [] };
 
 const USAGE_OPTIONS = [
   { key: "favorite", label: "⭐ Favorites",   hint: `${FAVORITE_MIN_TIMES}+ times` },
@@ -26,13 +27,32 @@ const USAGE_OPTIONS = [
 
 const FILTER_GROUPS = [
   { key: "usage",      title: "Usage",       options: USAGE_OPTIONS },
+  { key: "rating",     title: "Your rating", options: [
+    { key: "top", label: "★ 4 and up" },
+    { key: "unrated", label: "Not rated yet" },
+  ] },
   { key: "meal",       title: "Meal",        options: MEALS },
   { key: "protein",    title: "Protein",     options: PROTEINS },
   { key: "difficulty", title: "Difficulty",  options: DIFFICULTIES },
   { key: "time",       title: "Time",        options: TIME_BUCKETS },
   { key: "method",     title: "Cook method", options: COOK_METHODS },
   { key: "season",     title: "Season",      options: SEASONS },
+  { key: "info",       title: "Recipe info", options: [
+    { key: "incomplete", label: "⚠️ Needs details" },
+  ] },
 ];
+
+// What's missing from a recipe, for the "Needs details" filter and card note.
+const missingDetails = (r) => [
+  !r.ingredients?.length && "ingredients",
+  !r.total_minutes && "time",
+  !r.meals?.length && "meal",
+].filter(Boolean);
+
+const VIEW_KEY = "recipe_view";
+const readView = () => {
+  try { return localStorage.getItem(VIEW_KEY) || "cards"; } catch { return "cards"; }
+};
 
 const SEASON_NOW = currentSeason();
 const SEASON_LABEL = byKey(SEASONS)[SEASON_NOW];
@@ -44,7 +64,9 @@ const WHOSE = [
 ];
 
 // Within a group, any selected option matches. Across groups, all must match.
-const matchesFilters = (r, f, status) =>
+const matchesFilters = (r, f, status, stars) =>
+  (!f.rating.length     || (f.rating.includes("top") && stars >= 4) || (f.rating.includes("unrated") && !stars)) &&
+  (!f.info.length       || missingDetails(r).length > 0) &&
   (!f.household.length  || f.household.includes(r.owner_id)) &&
   (!f.usage.length      || f.usage.some((k) => status[k])) &&
   (!f.meal.length       || f.meal.some((m) => r.meals?.includes(m))) &&
@@ -54,7 +76,7 @@ const matchesFilters = (r, f, status) =>
   (!f.method.length     || f.method.some((m) => r.cook_methods?.includes(m))) &&
   (!f.season.length     || f.season.some((s) => isInSeason(r, s)));
 
-export default function RecipeLibrary({ household, profiles, recipes, mealPlan, groceryItems, showToast }) {
+export default function RecipeLibrary({ household, profiles, ledger = [], recipes, mealPlan, groceryItems, showToast }) {
   const { code, public_id: myId } = household;
   const isMine = (r) => r.owner_id === myId;
   const ownerName = (r) => profiles[r.owner_id]?.name || null;
@@ -68,6 +90,13 @@ export default function RecipeLibrary({ household, profiles, recipes, mealPlan, 
   const [editing, setEditing]     = useState(null); // null | {} (new) | recipe
   const [importing, setImporting] = useState(false);
   const [whose, setWhose]         = useState("all");
+  const [view, setViewState]      = useState(readView);
+  const setView = (v) => {
+    setViewState(v);
+    try { localStorage.setItem(VIEW_KEY, v); } catch { /* private mode */ }
+  };
+  const starsOf = (r) => r.ratings?.[myId] || 0;
+  const { requestRemove, prompt } = useMealRemoval({ code, publicId: myId, mealPlan, ledger, groceryItems, showToast });
 
   const usage = useMemo(() => buildUsage(mealPlan), [mealPlan]);
 
@@ -96,10 +125,12 @@ export default function RecipeLibrary({ household, profiles, recipes, mealPlan, 
       (!q || r.name?.toLowerCase().includes(q)) &&
       (!inSeasonNow || isInSeason(r, SEASON_NOW)) &&
       (whose === "all" || (whose === "mine") === isMine(r)) &&
-      matchesFilters(r, filters, usageStatus(usage[r.id]))
+      matchesFilters(r, filters, usageStatus(usage[r.id]), starsOf(r))
     );
     const byName = (a, b) => (a.name || "").localeCompare(b.name || "");
-    if (sort === "popular") {
+    if (sort === "rated") {
+      list.sort((a, b) => starsOf(b) - starsOf(a) || byName(a, b));
+    } else if (sort === "popular") {
       // Most other households first, then most times made by others.
       const score = (r) => {
         const o = othersWhoMade(r, myId, profiles);
@@ -147,10 +178,10 @@ export default function RecipeLibrary({ household, profiles, recipes, mealPlan, 
   // "Add to this week" from the detail sheet.
   const thisWeek = weekStart(0);
   const planEntry = openRecipe && mealPlan.find((m) => m.recipe_id === openRecipe.id && m.week_start === thisWeek);
-  const togglePlan = async () => {
+  const togglePlan = async (scale) => {
     try {
-      if (planEntry) await removeFromPlan(code, myId, planEntry, mealPlan);
-      else { await addToPlan(code, myId, openRecipe, thisWeek, mealPlan); showToast("Added to this week"); }
+      if (planEntry) await requestRemove(planEntry, openRecipe);
+      else { await addToPlan(code, myId, openRecipe, thisWeek, mealPlan, scale); showToast("Added to this week"); }
     } catch (e) {
       console.error(e);
       showToast("Couldn't update the plan — try again");
@@ -201,6 +232,9 @@ export default function RecipeLibrary({ household, profiles, recipes, mealPlan, 
           hasCopy={!!myCopy}
           planned={!!planEntry}
           onTogglePlan={togglePlan}
+          myId={myId}
+          scale={planEntry?.scale || 1}
+          onScaleChange={(scale) => { if (planEntry) setPlanScale(code, planEntry.id, scale).catch(console.error); }}
         />
       )}
       {editing && (
@@ -222,6 +256,7 @@ export default function RecipeLibrary({ household, profiles, recipes, mealPlan, 
           onClose={() => setImporting(false)}
         />
       )}
+      {prompt}
       <div style={styles.bottomBar}>
         <button className="secondary-btn" onClick={() => setImporting(true)} style={styles.secondaryBtn}>
           Import
@@ -361,11 +396,16 @@ export default function RecipeLibrary({ household, profiles, recipes, mealPlan, 
         </div>
       )}
 
-      <p style={styles.hint}>
-        {visible.length === recipes.length
-          ? `${recipes.length} recipe${recipes.length !== 1 ? "s" : ""}`
-          : `${visible.length} of ${recipes.length} recipes`}
-      </p>
+      <div style={styles.hintRow}>
+        <p style={{ ...styles.hint, margin: 0 }}>
+          {visible.length === recipes.length
+            ? `${recipes.length} recipe${recipes.length !== 1 ? "s" : ""}`
+            : `${visible.length} of ${recipes.length} recipes`}
+        </p>
+        <button onClick={() => setView(view === "cards" ? "compact" : "cards")} style={styles.viewBtn}>
+          {view === "cards" ? "☰ Compact" : "▦ Cards"}
+        </button>
+      </div>
 
       {/* ── Cards ── */}
       {visible.length === 0 ? (
@@ -382,19 +422,22 @@ export default function RecipeLibrary({ household, profiles, recipes, mealPlan, 
               key={r.id}
               className="recipe-card"
               onClick={() => setOpenId(r.id)}
-              style={styles.recipeCard}
+              style={{ ...styles.recipeCard, ...(view === "compact" ? { padding: "9px 12px", gap: 10 } : {}) }}
             >
-              <RecipeThumb recipe={r} />
+              <RecipeThumb recipe={r} size={view === "compact" ? 36 : 60} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={styles.cardName}>{r.name}</div>
-                <RecipeTags recipe={r} />
-                <UsageLine usage={usage[r.id]} style={{ marginTop: 7 }} />
+                <div style={{ ...styles.cardName, marginBottom: 2, ...(view === "compact" ? { fontSize: 14 } : {}) }}>{r.name}</div>
+                <RecipeMeta recipe={r} text stars={starsOf(r)} />
+                {view === "cards" && <UsageLine usage={usage[r.id]} style={{ marginTop: 4 }} />}
+                {missingDetails(r).length > 0 && (filters.info.length > 0 || isMine(r)) && (
+                  <div style={styles.missing}>⚠️ Needs {missingDetails(r).join(", ")}</div>
+                )}
                 {sort === "popular" && (() => {
                   const o = othersWhoMade(r, myId, profiles);
                   return o.length > 0 && <div style={styles.popular}>🔥 Made by {madeByLabel(o)}</div>;
                 })()}
-                {ownerName(r) && (
-                  <div style={styles.from}>from {isMine(r) ? `${ownerName(r)} (you)` : ownerName(r)}</div>
+                {ownerName(r) && !isMine(r) && view === "cards" && (
+                  <div style={styles.from}>from {ownerName(r)}</div>
                 )}
               </div>
             </button>
@@ -464,6 +507,12 @@ const styles = {
     boxShadow: "0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)",
     textAlign: "left", cursor: "pointer", fontFamily: font,
   },
+  hintRow: { display: "flex", alignItems: "center", justifyContent: "space-between", margin: "2px 2px 8px" },
+  viewBtn: {
+    padding: "7px 10px", border: "none", background: "transparent", color: "#8a8478",
+    fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: font,
+  },
+  missing: { fontSize: 11, color: "#b07a1e", marginTop: 3, fontWeight: 600 },
   from: { fontSize: 11, color: "#a0998a", marginTop: 3, fontWeight: 500 },
   popular: { fontSize: 12, color: "#b5521b", marginTop: 4, fontWeight: 600 },
   segment: { display: "flex", gap: 3, padding: 3, borderRadius: 11, background: "#efede6" },

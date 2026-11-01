@@ -3,6 +3,8 @@ import { COOK_METHODS, SEASONS, MEALS, byKey } from "./constants.js";
 import { formatQty, formatMinutes, formatShortDate } from "./utils.js";
 import { SECTION_ICONS } from "../sections.js";
 import RecipeTags, { RecipeThumb, Tag, UsageLine } from "./RecipeTags.jsx";
+import CookMode from "./CookMode.jsx";
+import { rateRecipe } from "./recipeApi.js";
 import { ui, font, BROWN, useBodyScrollLock, useBackToClose } from "./ui.js";
 
 const M = byKey(COOK_METHODS);
@@ -13,11 +15,31 @@ export default function RecipeDetail({
   recipe, usage, onClose, onEdit, onDelete,
   backLabel = "← Recipes", planned, planLabel = "this week", onTogglePlan,
   ownerName, onCopy, hasCopy, othersWhoMade = [], zIndex = 250,
+  myId, scale: startScale = 1, onScaleChange,
 }) {
   useBodyScrollLock();
   useBackToClose(onClose);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting]           = useState(false);
+  const [scale, setScale]                 = useState(startScale);
+  const [cooking, setCooking]             = useState(false);
+
+  const myRating = myId ? recipe.ratings?.[myId] : null;
+  const otherRatings = Object.entries(recipe.ratings || {}).filter(([id]) => id !== myId).map(([, n]) => n);
+  const otherAvg = otherRatings.length
+    ? Math.round((otherRatings.reduce((a, b) => a + b, 0) / otherRatings.length) * 10) / 10
+    : null;
+  const rate = (n) => rateRecipe(recipe.id, myId, n === myRating ? null : n).catch(console.error);
+
+  // Servings when the recipe has them; otherwise a plain multiplier.
+  const base = recipe.servings || null;
+  const changeScale = (dir) => {
+    const next = base
+      ? Math.max(1, Math.round(base * scale) + dir) / base
+      : Math.max(0.5, scale + dir * 0.5);
+    setScale(next);
+    onScaleChange?.(next);
+  };
 
   // On success the recipe vanishes from the live list, which closes this sheet.
   const doDelete = async () => {
@@ -26,6 +48,7 @@ export default function RecipeDetail({
   };
 
   const ingredients = recipe.ingredients || [];
+  const shownQty = (ing) => formatQty(typeof ing.qty === "number" ? ing.qty * scale : ing.qty, ing.unit);
   const facts = [
     recipe.total_minutes ? `⏱ ${formatMinutes(recipe.total_minutes)}` : null,
     recipe.servings ? `🍽 Serves ${recipe.servings}` : null,
@@ -61,6 +84,29 @@ export default function RecipeDetail({
             : <Tag>🗓 Year-round</Tag>}
         </div>
 
+        {myId && (
+          <div style={styles.ratingRow}>
+            <div>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => rate(n)}
+                  aria-label={`Rate ${n} star${n !== 1 ? "s" : ""}`}
+                  style={{ ...styles.star, color: n <= (myRating || 0) ? "#e0a100" : "#d8d5ca" }}
+                >★</button>
+              ))}
+            </div>
+            <span style={styles.ratingNote}>
+              {myRating ? "Your rating" : "Tap to rate"}
+              {otherAvg ? ` · others ★${otherAvg}` : ""}
+            </span>
+          </div>
+        )}
+
+        <button className="primary-btn" onClick={() => setCooking(true)} style={styles.cookBtn}>
+          👩‍🍳 Cook mode
+        </button>
+
         {onCopy && (
           <button className="secondary-btn" onClick={onCopy} style={styles.copyBtn}>
             {hasCopy ? "✓ You have a copy · open it" : "📋 Save a copy to my recipes"}
@@ -73,7 +119,7 @@ export default function RecipeDetail({
         {onTogglePlan && (
           <button
             className="primary-btn"
-            onClick={onTogglePlan}
+            onClick={() => onTogglePlan(scale)}
             style={{
               ...styles.planBtn,
               background: planned ? "#eef6f4" : "linear-gradient(135deg, #1f4d47 0%, #2f6b63 100%)",
@@ -84,7 +130,18 @@ export default function RecipeDetail({
         )}
 
         {/* ── Ingredients ── */}
-        <div style={ui.sectionLabel}>Ingredients</div>
+        <div style={styles.ingHead}>
+          <div style={{ ...ui.sectionLabel, padding: 0 }}>Ingredients</div>
+          {ingredients.length > 0 && (
+            <div style={styles.stepper}>
+              <button onClick={() => changeScale(-1)} aria-label="Fewer" style={styles.stepBtn}>−</button>
+              <span style={styles.stepValue}>
+                {base ? `Serves ${Math.round(base * scale)}` : `×${Math.round(scale * 100) / 100}`}
+              </span>
+              <button onClick={() => changeScale(1)} aria-label="More" style={styles.stepBtn}>+</button>
+            </div>
+          )}
+        </div>
         <div style={ui.card}>
           {ingredients.length === 0 ? (
             <div style={{ padding: "14px 16px", fontSize: 13, color: "#aaa" }}>No ingredients saved.</div>
@@ -97,9 +154,9 @@ export default function RecipeDetail({
                 {SECTION_ICONS[ing.section] || "📦"}
               </span>
               <span style={{ flex: 1, fontSize: 14, color: "#222", fontWeight: 500 }}>{ing.name}</span>
-              {formatQty(ing.qty, ing.unit) && (
+              {shownQty(ing) && (
                 <span style={{ fontSize: 13, color: "#888", fontWeight: 600, whiteSpace: "nowrap" }}>
-                  {formatQty(ing.qty, ing.unit)}
+                  {shownQty(ing)}
                 </span>
               )}
             </div>
@@ -162,6 +219,8 @@ export default function RecipeDetail({
         )}
       </div>
 
+      {cooking && <CookMode recipe={recipe} scale={scale} onClose={() => setCooking(false)} />}
+
       {confirmDelete && (
         <div className="overlay-anim" style={styles.overlay} onClick={() => !deleting && setConfirmDelete(false)}>
           <div className="modal-anim" style={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -196,6 +255,17 @@ const styles = {
     fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
   copyHint: { fontSize: 12, color: "#a0998a", margin: "6px 2px 0", textAlign: "center" },
+  ratingRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 12 },
+  star: { width: 36, height: 40, padding: 0, border: "none", background: "transparent", fontSize: 28, lineHeight: 1, cursor: "pointer" },
+  ratingNote: { fontSize: 12, color: "#a0998a", fontWeight: 500, textAlign: "right" },
+  cookBtn: {
+    display: "block", width: "100%", marginTop: 12, padding: "14px", borderRadius: 12, border: "none",
+    background: "#16211d", color: "#f3f1e8", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: font,
+  },
+  ingHead: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 2px 8px" },
+  stepper: { display: "flex", alignItems: "center", gap: 2, background: "white", border: "1.5px solid #e4e2d8", borderRadius: 10 },
+  stepBtn: { width: 40, height: 38, border: "none", background: "transparent", fontSize: 20, color: BROWN, cursor: "pointer", fontFamily: font },
+  stepValue: { minWidth: 66, textAlign: "center", fontSize: 13, fontWeight: 700, color: "#444" },
   planBtn: {
     display: "block", width: "100%", marginTop: 16, padding: "14px", borderRadius: 12,
     fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,
