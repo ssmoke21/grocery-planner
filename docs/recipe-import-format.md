@@ -10,8 +10,9 @@ Or paste this version, followed by the recipe text, a website link, or a photo o
 
 > Convert the recipe(s) below into JSON for my grocery app, following this exact format. Output only the JSON array, no commentary.
 >
-> - `name` (required), `course`, `protein`, `difficulty`, `total_minutes`, `cook_methods`, `seasons`, `servings`, `source_url`, `instructions`, `notes`, `photo_url`, `ingredients`
-> - `course`: `main` or `side` (use `side` for side dishes and side salads)
+> - `name` (required), `course`, `meals`, `protein`, `difficulty`, `total_minutes`, `cook_methods`, `seasons`, `servings`, `source_url`, `instructions`, `notes`, `photo_url`, `ingredients`
+> - `course`: `main`, `side`, or `dessert` (use `side` for side dishes and side salads)
+> - `meals`: list, any of `breakfast`, `lunch`, `dinner`
 > - `protein`: one of `chicken`, `fish`, `beef`, `turkey`, `pork`, `vegetarian`, `other`
 > - `difficulty`: one of `easy`, `medium`, `hard`
 > - `cook_methods`: any of `oven`, `stovetop`, `grill`, `slow_cooker` (includes Instant Pot), `air_fryer`, `no_cook`
@@ -27,6 +28,7 @@ Or paste this version, followed by the recipe text, a website link, or a photo o
   {
     "name": "Sheet Pan Chicken Fajitas",
     "course": "main",
+    "meals": ["dinner"],
     "protein": "chicken",
     "difficulty": "easy",
     "total_minutes": 35,
@@ -55,7 +57,8 @@ Or paste this version, followed by the recipe text, a website link, or a photo o
 | Field | Required? | Type | Notes |
 |---|---|---|---|
 | `name` | **yes** | text | Recipes with the same name as one already in the library are skipped (capital letters and extra spaces are ignored). |
-| `course` | no | text | `main` or `side`. Leave it out for mains. "Side dish", "entree" and similar words are understood. |
+| `course` | no | text | `main`, `side`, or `dessert`. Leave it out for mains. "Side dish", "entree" and similar words are understood. |
+| `meals` | no | list | `breakfast`, `lunch`, `dinner`. Only recipes marked `dinner` can appear in dinner suggestions. |
 | `protein` | no | text | `chicken`, `fish`, `beef`, `turkey`, `pork`, `vegetarian`, `other`. Common words like "seafood", "salmon", "veggie", or "bacon" are understood too. |
 | `difficulty` | no | text | `easy`, `medium`, `hard` |
 | `total_minutes` | no | number | Prep + cook time. Shown as **Quick** (≤30), **Medium** (31–60), or **Long** (60+). |

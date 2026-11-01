@@ -4,6 +4,7 @@ import { addToPlan, removeFromPlan } from "./recipeApi.js";
 import RecipeTags, { RecipeThumb, UsageLine } from "./RecipeTags.jsx";
 import RecipeDetail from "./RecipeDetail.jsx";
 import GroceryReview from "./GroceryReview.jsx";
+import MealSuggestions from "./MealSuggestions.jsx";
 import { ui, font, useBodyScrollLock, useBackToClose } from "./ui.js";
 
 const TEAL = "#2f6b63";
@@ -19,6 +20,7 @@ const byAdded = (a, b) => addedAt(a) - addedAt(b);
 export default function WeekPlan({ code, publicId, profiles = {}, recipes, mealPlan, groceryItems, showToast, onGoToList }) {
   const [offset, setOffset]       = useState(0);
   const [picking, setPicking]     = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [openId, setOpenId]       = useState(null);
 
@@ -105,9 +107,14 @@ export default function WeekPlan({ code, publicId, profiles = {}, recipes, mealP
         </div>
       )}
 
-      <button className="add-trigger-btn" onClick={() => setPicking(true)} style={styles.addBtn}>
-        + Add recipes
-      </button>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="add-trigger-btn" onClick={() => setSuggesting(true)} style={styles.addBtn}>
+          ✨ Suggest dinners
+        </button>
+        <button className="add-trigger-btn" onClick={() => setPicking(true)} style={styles.addBtn}>
+          + Add recipes
+        </button>
+      </div>
 
       {/* ── Bottom bar ── */}
       <div style={styles.bottomBar}>
@@ -123,6 +130,21 @@ export default function WeekPlan({ code, publicId, profiles = {}, recipes, mealP
           }}
         >🛒 Build grocery list</button>
       </div>
+
+      {suggesting && (
+        <MealSuggestions
+          recipes={recipes}
+          usage={usage}
+          profiles={profiles}
+          publicId={publicId}
+          week={week}
+          weekLabel={offset ? "next week" : "this week"}
+          plannedRecipes={planned.map((p) => p.recipe)}
+          isPlanned={(id) => !!entryFor(id)}
+          onToggle={togglePlan}
+          onClose={() => setSuggesting(false)}
+        />
+      )}
 
       {picking && (
         <RecipePicker

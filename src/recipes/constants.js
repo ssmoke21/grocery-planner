@@ -17,8 +17,16 @@ export const PROTEINS = [
 export const COURSES = [
   { key: "main", label: "Main",      icon: "🍽️" },
   { key: "side", label: "Side dish", icon: "🥗" },
+  { key: "dessert", label: "Dessert", icon: "🍪" },
 ];
-export const courseOf = (recipe) => (recipe.course === "side" ? "side" : "main");
+export const courseOf = (recipe) => (COURSES.some((c) => c.key === recipe.course) ? recipe.course : "main");
+
+// A recipe can suit several meals. Dinner suggestions only use "dinner" recipes.
+export const MEALS = [
+  { key: "breakfast", label: "Breakfast", icon: "🍳" },
+  { key: "lunch",     label: "Lunch",     icon: "🥪" },
+  { key: "dinner",    label: "Dinner",    icon: "🌙" },
+];
 
 export const DIFFICULTIES = [
   { key: "easy",   label: "Easy" },

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { COOK_METHODS, SEASONS, byKey } from "./constants.js";
+import { COOK_METHODS, SEASONS, MEALS, byKey } from "./constants.js";
 import { formatQty, formatMinutes, formatShortDate } from "./utils.js";
 import { SECTION_ICONS } from "../sections.js";
 import RecipeTags, { RecipeThumb, Tag, UsageLine } from "./RecipeTags.jsx";
@@ -7,11 +7,12 @@ import { ui, font, BROWN, useBodyScrollLock, useBackToClose } from "./ui.js";
 
 const M = byKey(COOK_METHODS);
 const S = byKey(SEASONS);
+const ML = byKey(MEALS);
 
 export default function RecipeDetail({
   recipe, usage, onClose, onEdit, onDelete,
   backLabel = "← Recipes", planned, planLabel = "this week", onTogglePlan,
-  ownerName, onCopy, hasCopy, othersWhoMade = [],
+  ownerName, onCopy, hasCopy, othersWhoMade = [], zIndex = 250,
 }) {
   useBodyScrollLock();
   useBackToClose(onClose);
@@ -31,7 +32,7 @@ export default function RecipeDetail({
   ].filter(Boolean);
 
   return (
-    <div className="sheet-anim" style={ui.sheet}>
+    <div className="sheet-anim" style={{ ...ui.sheet, zIndex }}>
       <div style={ui.topBar}>
         <button className="secondary-btn" onClick={onClose} style={ui.backBtn}>{backLabel}</button>
         {onEdit && (
@@ -52,6 +53,7 @@ export default function RecipeDetail({
         <RecipeTags recipe={recipe} />
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
+          {recipe.meals?.map((m) => ML[m] && <Tag key={m}>{ML[m].icon} {ML[m].label}</Tag>)}
           {facts.map((f) => <Tag key={f}>{f}</Tag>)}
           {recipe.cook_methods?.map((m) => M[m] && <Tag key={m}>{M[m].label}</Tag>)}
           {recipe.seasons?.length
