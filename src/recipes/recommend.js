@@ -1,6 +1,6 @@
 // Dinner suggestions: a varied mix of old favorites, regulars and new things
 // to try, for the season. Pure logic (no database), so it can be tested alone.
-import { FAVORITE_MIN_TIMES, courseOf } from "./constants.js";
+import { FAVORITE_MIN_TIMES } from "./constants.js";
 import { daysSince, isInSeason, formatShortDate, usageLabel } from "./utils.js";
 
 const RECENT_DAYS = 14;        // don't suggest anything made this recently
@@ -27,7 +27,6 @@ const isQuick = (r) => r.total_minutes > 0 && r.total_minutes <= 30;
 export const eligibleDinners = ({ recipes, usage, season }) =>
   recipes.filter((r) =>
     r.meals?.includes("dinner") &&
-    courseOf(r) === "main" &&
     isInSeason(r, season) &&
     !(usage[r.id]?.last && daysSince(usage[r.id].last) < RECENT_DAYS)
   );

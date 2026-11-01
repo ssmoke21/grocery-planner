@@ -1,7 +1,7 @@
 // The prompt people paste into an AI tool (Claude, ChatGPT, …) along with a
 // recipe photo, link, or text. Built from the app's own option lists so it
 // never drifts out of date.
-import { PROTEINS, DIFFICULTIES, COOK_METHODS, SEASONS, COURSES, MEALS } from "./constants.js";
+import { PROTEINS, DIFFICULTIES, COOK_METHODS, SEASONS, MEALS } from "./constants.js";
 import { SECTION_ORDER, FALLBACK_SECTION } from "../sections.js";
 
 const keys = (list) => list.map((o) => o.key).join(", ");
@@ -11,8 +11,7 @@ export const AI_PROMPT = `Convert the recipe(s) I'm sharing (photo, link, or tex
 
 Each recipe is an object with these fields (only "name" is required):
 - name: text
-- course: one of ${keys(COURSES)} (use "side" for side dishes and side salads, "dessert" for sweets)
-- meals: list, any of ${keys(MEALS)} (when you'd eat it; can be several)
+- meals: list, any of ${keys(MEALS)} (can be several; use "dinner" only for a full dinner, "side" for side dishes and side salads)
 - protein: one of ${keys(PROTEINS)}
 - difficulty: one of ${keys(DIFFICULTIES)}
 - total_minutes: number (prep + cook)
@@ -30,4 +29,4 @@ Each recipe is an object with these fields (only "name" is required):
   - leave out water, salt, and pepper
 
 Example:
-[{"name":"Sheet Pan Chicken Fajitas","course":"main","meals":["dinner"],"protein":"chicken","difficulty":"easy","total_minutes":35,"cook_methods":["oven"],"seasons":[],"servings":4,"source_url":"","instructions":"1. Heat oven to 425°F.\\n2. Toss sliced chicken, peppers, and onion with oil and seasoning.\\n3. Roast 20–25 min.","notes":"","ingredients":[{"name":"chicken breasts","qty":1.5,"unit":"lb","section":"Meat & Seafood"},{"name":"bell peppers","qty":3,"unit":"","section":"Produce"},{"name":"flour tortillas","qty":8,"unit":"","section":"Bakery"}]}]`;
+[{"name":"Sheet Pan Chicken Fajitas","meals":["dinner"],"protein":"chicken","difficulty":"easy","total_minutes":35,"cook_methods":["oven"],"seasons":[],"servings":4,"source_url":"","instructions":"1. Heat oven to 425°F.\\n2. Toss sliced chicken, peppers, and onion with oil and seasoning.\\n3. Roast 20–25 min.","notes":"","ingredients":[{"name":"chicken breasts","qty":1.5,"unit":"lb","section":"Meat & Seafood"},{"name":"bell peppers","qty":3,"unit":"","section":"Produce"},{"name":"flour tortillas","qty":8,"unit":"","section":"Bakery"}]}]`;

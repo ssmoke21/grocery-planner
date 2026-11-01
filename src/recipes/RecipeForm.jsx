@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { PROTEINS, DIFFICULTIES, TIME_BUCKETS, COOK_METHODS, SEASONS, COURSES, MEALS, byKey, courseOf } from "./constants.js";
+import { PROTEINS, DIFFICULTIES, TIME_BUCKETS, COOK_METHODS, SEASONS, MEALS, byKey } from "./constants.js";
 import { timeBucket } from "./utils.js";
 import { normalizeRecipe, guessSection } from "./normalize.js";
 import { createRecipe, updateRecipe } from "./recipeApi.js";
@@ -12,7 +12,6 @@ const newKey = () => `k${++keySeq}`;
 
 const toForm = (r = {}) => ({
   name:          r.name || "",
-  course:        courseOf(r),
   // New recipes start as dinner; existing ones keep exactly what they have.
   meals:         r.meals || (r.id ? [] : ["dinner"]),
   protein:       r.protein || null,
@@ -38,7 +37,7 @@ export default function RecipeForm({ initial, ownerId, groceryItems, onCancel, o
   const [form, setForm]     = useState(() => toForm(initial));
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState(false);
-  const startJson = useRef(JSON.stringify(toForm(initial)));
+  const startJson = useRef(JSON.stringify(form));
   const nameRef = useRef(null);
 
   const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
@@ -134,15 +133,6 @@ export default function RecipeForm({ initial, ownerId, groceryItems, onCancel, o
           style={{ ...ui.input, borderColor: nameError ? "#c44" : "#e4e2d8" }}
         />
         {nameError && <p style={{ ...ui.hint, color: "#c44" }}>Give the recipe a name.</p>}
-
-        {/* ── Dish ── */}
-        <div style={ui.sectionLabel}>Dish</div>
-        <div style={ui.chipRow}>
-          {COURSES.map((c) => (
-            <button key={c.key} onClick={() => set("course", c.key)}
-              style={chipStyle(form.course === c.key)}>{c.icon} {c.label}</button>
-          ))}
-        </div>
 
         {/* ── Meal ── */}
         <div style={ui.sectionLabel}>Meal</div>

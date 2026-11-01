@@ -19,7 +19,7 @@ export const copyRecipe = (recipe, ownerId) => {
 };
 
 export const updateRecipe = (id, recipe) =>
-  updateDoc(doc(db, "recipes", id), { ...recipe, updatedAt: serverTimestamp() });
+  updateDoc(doc(db, "recipes", id), { ...recipe, course: deleteField(), updatedAt: serverTimestamp() });
 
 // Deletes the recipe and this household's meal-plan history for it.
 export const deleteRecipe = async (code, id, mealPlan) => {

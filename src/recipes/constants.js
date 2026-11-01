@@ -13,20 +13,22 @@ export const PROTEINS = [
   { key: "other",      label: "Other",          icon: "🍽️", tint: "#EEEDE6" },
 ];
 
-// Recipes without a course count as mains.
-export const COURSES = [
-  { key: "main", label: "Main",      icon: "🍽️" },
-  { key: "side", label: "Side dish", icon: "🥗" },
-  { key: "dessert", label: "Dessert", icon: "🍪" },
-];
-export const courseOf = (recipe) => (COURSES.some((c) => c.key === recipe.course) ? recipe.course : "main");
-
-// A recipe can suit several meals. Dinner suggestions only use "dinner" recipes.
+// A recipe can have several of these. Dinner suggestions only use "dinner" recipes.
 export const MEALS = [
   { key: "breakfast", label: "Breakfast", icon: "🍳" },
   { key: "lunch",     label: "Lunch",     icon: "🥪" },
   { key: "dinner",    label: "Dinner",    icon: "🌙" },
+  { key: "side",      label: "Side dish", icon: "🥗" },
+  { key: "dessert",   label: "Dessert",   icon: "🍪" },
 ];
+
+// Recipes saved before Dish and Meal were combined have a separate "course"
+// field. Side dishes and desserts become meal tags and stop counting as dinner.
+export const withCombinedMeals = ({ course, ...recipe }) => {
+  if (course !== "side" && course !== "dessert") return recipe;
+  const meals = (recipe.meals || []).filter((m) => m !== "dinner" && m !== course);
+  return { ...recipe, meals: [...meals, course] };
+};
 
 export const DIFFICULTIES = [
   { key: "easy",   label: "Easy" },

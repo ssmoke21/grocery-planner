@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { db } from "../firebase.js";
 import { collection, doc, writeBatch, serverTimestamp } from "firebase/firestore";
 import {
-  PROTEINS, DIFFICULTIES, TIME_BUCKETS, COOK_METHODS, SEASONS, SORTS, byKey, COURSES, courseOf, MEALS,
+  PROTEINS, DIFFICULTIES, TIME_BUCKETS, COOK_METHODS, SEASONS, SORTS, byKey, MEALS,
   FAVORITE_MIN_TIMES, NOT_IN_A_WHILE_DAYS,
 } from "./constants.js";
 import {
@@ -16,7 +16,7 @@ import RecipeForm from "./RecipeForm.jsx";
 import ImportRecipes from "./ImportRecipes.jsx";
 import { deleteRecipe, addToPlan, removeFromPlan, copyRecipe } from "./recipeApi.js";
 
-const EMPTY_FILTERS = { household: [], usage: [], meal: [], course: [], protein: [], difficulty: [], time: [], method: [], season: [] };
+const EMPTY_FILTERS = { household: [], usage: [], meal: [], protein: [], difficulty: [], time: [], method: [], season: [] };
 
 const USAGE_OPTIONS = [
   { key: "favorite", label: "⭐ Favorites",   hint: `${FAVORITE_MIN_TIMES}+ times` },
@@ -27,7 +27,6 @@ const USAGE_OPTIONS = [
 const FILTER_GROUPS = [
   { key: "usage",      title: "Usage",       options: USAGE_OPTIONS },
   { key: "meal",       title: "Meal",        options: MEALS },
-  { key: "course",     title: "Dish",        options: COURSES },
   { key: "protein",    title: "Protein",     options: PROTEINS },
   { key: "difficulty", title: "Difficulty",  options: DIFFICULTIES },
   { key: "time",       title: "Time",        options: TIME_BUCKETS },
@@ -49,7 +48,6 @@ const matchesFilters = (r, f, status) =>
   (!f.household.length  || f.household.includes(r.owner_id)) &&
   (!f.usage.length      || f.usage.some((k) => status[k])) &&
   (!f.meal.length       || f.meal.some((m) => r.meals?.includes(m))) &&
-  (!f.course.length     || f.course.includes(courseOf(r))) &&
   (!f.protein.length    || f.protein.includes(r.protein)) &&
   (!f.difficulty.length || f.difficulty.includes(r.difficulty)) &&
   (!f.time.length       || f.time.includes(timeBucket(r.total_minutes))) &&

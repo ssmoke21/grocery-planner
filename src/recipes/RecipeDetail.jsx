@@ -53,7 +53,7 @@ export default function RecipeDetail({
         <RecipeTags recipe={recipe} />
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
-          {recipe.meals?.map((m) => ML[m] && <Tag key={m}>{ML[m].icon} {ML[m].label}</Tag>)}
+          {recipe.meals?.filter((m) => m !== "side" && m !== "dessert").map((m) => ML[m] && <Tag key={m}>{ML[m].icon} {ML[m].label}</Tag>)}
           {facts.map((f) => <Tag key={f}>{f}</Tag>)}
           {recipe.cook_methods?.map((m) => M[m] && <Tag key={m}>{M[m].label}</Tag>)}
           {recipe.seasons?.length

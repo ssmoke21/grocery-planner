@@ -1,4 +1,4 @@
-import { PROTEINS, DIFFICULTIES, TIME_BUCKETS, byKey, courseOf } from "./constants.js";
+import { PROTEINS, DIFFICULTIES, TIME_BUCKETS, byKey } from "./constants.js";
 import { timeBucket, usageStatus, usageLabel } from "./utils.js";
 
 const P = byKey(PROTEINS);
@@ -28,8 +28,8 @@ export default function RecipeTags({ recipe }) {
   const dc = DIFF_COLORS[recipe.difficulty];
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-      {courseOf(recipe) === "side" && <Tag bg="#E6F2EF" color="#2f6b63">🥗 Side</Tag>}
-      {courseOf(recipe) === "dessert" && <Tag bg="#FBEBDD" color="#9a5a1f">🍪 Dessert</Tag>}
+      {recipe.meals?.includes("side") && <Tag bg="#E6F2EF" color="#2f6b63">🥗 Side</Tag>}
+      {recipe.meals?.includes("dessert") && <Tag bg="#FBEBDD" color="#9a5a1f">🍪 Dessert</Tag>}
       {p && <Tag bg={p.tint} color="#5a4a3a">{p.icon} {p.label}</Tag>}
       {t && <Tag>⏱ {t.label}</Tag>}
       {d && <Tag bg={dc.bg} color={dc.text}>{d.label}</Tag>}

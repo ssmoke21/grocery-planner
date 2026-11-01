@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { db } from "../firebase.js";
 import { collection, onSnapshot } from "firebase/firestore";
 import { hCol } from "../household.js";
+import { withCombinedMeals } from "./constants.js";
 
 // Live subscription to the shared recipe library + this household's meal plan.
 // Kept at the App level so switching tabs doesn't re-download everything.
@@ -15,7 +16,7 @@ export function useRecipeData(code) {
     const recipesUnsub = onSnapshot(
       collection(db, "recipes"),
       (snap) => {
-        setRecipes(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        setRecipes(snap.docs.map((d) => withCombinedMeals({ id: d.id, ...d.data() })));
         setLoaded((p) => ({ ...p, recipes: true }));
       },
       (err) => { console.error(err); setLoaded((p) => ({ ...p, recipes: true })); }
