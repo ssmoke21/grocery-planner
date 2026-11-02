@@ -175,13 +175,13 @@ export default function RecipeLibrary({ household, profiles, ledger = [], recipe
 
   const openRecipe = recipes.find((r) => r.id === openId);
 
-  // "Add to this week" from the detail sheet.
-  const thisWeek = weekStart(0);
-  const planEntry = openRecipe && mealPlan.find((m) => m.recipe_id === openRecipe.id && m.week_start === thisWeek);
+  // "Add to next week" from the detail sheet.
+  const planWeek = weekStart(1);
+  const planEntry = openRecipe && mealPlan.find((m) => m.recipe_id === openRecipe.id && m.week_start === planWeek);
   const togglePlan = async (scale) => {
     try {
       if (planEntry) await requestRemove(planEntry, openRecipe);
-      else { await addToPlan(code, myId, openRecipe, thisWeek, mealPlan, scale); showToast("Added to this week"); }
+      else { await addToPlan(code, myId, openRecipe, planWeek, mealPlan, scale); showToast("Added to next week"); }
     } catch (e) {
       console.error(e);
       showToast("Couldn't update the plan — try again");
@@ -232,6 +232,7 @@ export default function RecipeLibrary({ household, profiles, ledger = [], recipe
           hasCopy={!!myCopy}
           planned={!!planEntry}
           onTogglePlan={togglePlan}
+          planLabel="next week"
           myId={myId}
           scale={planEntry?.scale || 1}
           onScaleChange={(scale) => { if (planEntry) setPlanScale(code, planEntry.id, scale).catch(console.error); }}

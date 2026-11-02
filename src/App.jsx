@@ -23,7 +23,7 @@ const FREQ_LABEL = { weekly: "weekly", most: "most wks", regular: "2-3 wks" };
 const TABS = [
   { key: "list",    label: "🛒 List" },
   { key: "recipes", label: "📖 Recipes" },
-  { key: "week",    label: "📅 This Week" },
+  { key: "week",    label: "📅 Meal Plan" },
 ];
 
 // Each phone remembers its own last tab.
@@ -259,8 +259,8 @@ export default function App({ household, onLeaveHousehold }) {
   const isList    = tab === "list";
   const isRecipes = tab === "recipes";
   const isWeek    = tab === "week";
-  const thisWeek  = weekStart(0);
-  const plannedThisWeek = mealPlan.filter((m) => m.week_start === thisWeek).length;
+  const nextWeek  = weekStart(1);
+  const plannedNextWeek = mealPlan.filter((m) => m.week_start === nextWeek).length;
   const usage = buildUsage(mealPlan);
   const favoriteCount = recipes.filter((r) => usageStatus(usage[r.id]).favorite).length;
 
@@ -311,9 +311,9 @@ export default function App({ household, onLeaveHousehold }) {
           <div style={styles.headerTop}>
             <div>
               <div style={styles.headerEyebrow}>MEAL PLAN</div>
-              <h1 style={styles.title}>This Week</h1>
+              <h1 style={styles.title}>Meal Plan</h1>
               <div style={styles.subtitle}>
-                {plannedThisWeek} meal{plannedThisWeek !== 1 ? "s" : ""} planned · {formatWeekRange(thisWeek)}
+                Next week: {plannedNextWeek} meal{plannedNextWeek !== 1 ? "s" : ""} · {formatWeekRange(nextWeek)}
               </div>
             </div>
           </div>
@@ -406,7 +406,7 @@ export default function App({ household, onLeaveHousehold }) {
           : <RecipeLibrary household={household} profiles={profiles} ledger={ledger} recipes={recipes} mealPlan={mealPlan} groceryItems={items} showToast={showToast} />
       )}
 
-      {/* ── THIS WEEK ── */}
+      {/* ── MEAL PLAN ── */}
       {isWeek && (
         recipesLoading
           ? <div style={styles.emptyState}>Loading…</div>

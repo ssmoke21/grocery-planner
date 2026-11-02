@@ -6,6 +6,7 @@ import RecipeTags, { RecipeThumb, UsageLine } from "./RecipeTags.jsx";
 import RecipeDetail from "./RecipeDetail.jsx";
 import GroceryReview from "./GroceryReview.jsx";
 import MealSuggestions from "./MealSuggestions.jsx";
+import PastWeeks from "./PastWeeks.jsx";
 import { ui, font, useBodyScrollLock, useBackToClose } from "./ui.js";
 
 const TEAL = "#2f6b63";
@@ -19,7 +20,8 @@ const addedAt = (m) => m.createdAt?.toMillis?.() ?? Infinity;
 const byAdded = (a, b) => addedAt(a) - addedAt(b);
 
 export default function WeekPlan({ code, publicId, profiles = {}, ledger = [], recipes, mealPlan, groceryItems, showToast, onGoToList }) {
-  const [offset, setOffset]       = useState(0);
+  const [offset, setOffset]       = useState(1); // planning usually means next week
+  const [showPast, setShowPast]   = useState(false);
   const [picking, setPicking]     = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [reviewing, setReviewing] = useState(false);
@@ -29,7 +31,7 @@ export default function WeekPlan({ code, publicId, profiles = {}, ledger = [], r
   const usage = useMemo(() => buildUsage(mealPlan), [mealPlan]);
   const recipeById = useMemo(() => Object.fromEntries(recipes.map((r) => [r.id, r])), [recipes]);
 
-  // This week's plan entries joined to their recipes.
+  // The selected week's plan entries joined to their recipes.
   const planned = mealPlan
     .filter((m) => m.week_start === week && recipeById[m.recipe_id])
     .sort(byAdded)
@@ -115,6 +117,8 @@ export default function WeekPlan({ code, publicId, profiles = {}, ledger = [], r
         </button>
       </div>
 
+      <button onClick={() => setShowPast(true)} style={styles.pastBtn}>🕘 Past weeks</button>
+
       {/* ── Bottom bar ── */}
       <div style={styles.bottomBar}>
         <button
@@ -131,6 +135,19 @@ export default function WeekPlan({ code, publicId, profiles = {}, ledger = [], r
       </div>
 
       {prompt}
+
+      {showPast && (
+        <PastWeeks
+          code={code}
+          publicId={publicId}
+          profiles={profiles}
+          recipes={recipes}
+          mealPlan={mealPlan}
+          usage={usage}
+          showToast={showToast}
+          onClose={() => setShowPast(false)}
+        />
+      )}
 
       {suggesting && (
         <MealSuggestions
@@ -162,7 +179,7 @@ export default function WeekPlan({ code, publicId, profiles = {}, ledger = [], r
         <RecipeDetail
           recipe={openRecipe}
           usage={usage[openRecipe.id]}
-          backLabel="← This week"
+          backLabel="← Meal plan"
           ownerName={profiles[openRecipe.owner_id]?.name}
           othersWhoMade={othersWhoMade(openRecipe, publicId, profiles)}
           onClose={() => setOpenId(null)}
@@ -277,6 +294,10 @@ const styles = {
   removeBtn: {
     width: 52, flexShrink: 0, border: "none", borderLeft: "1px solid #f0efe8",
     background: "white", color: "#b0aa9c", fontSize: 16, cursor: "pointer", fontFamily: font,
+  },
+  pastBtn: {
+    display: "block", width: "100%", marginTop: 6, padding: "12px", border: "none", background: "transparent",
+    color: "#8a8478", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
   addBtn: {
     width: "100%", marginTop: 12, padding: "14px", borderRadius: 12,

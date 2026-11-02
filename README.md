@@ -18,7 +18,8 @@ A mobile-friendly grocery and meal planner shared among a few friends' household
 - **Adjust servings** and use **Cook mode** (large text, tap off steps, screen stays on where the phone allows it)
 - **Bulk import** from JSON, with a one-tap prompt for AI tools. Format: [docs/recipe-import-format.md](docs/recipe-import-format.md)
 
-### 📅 This Week (private to each household)
+### 📅 Meal Plan (private to each household)
+- Opens on next week, and **Past weeks** looks back at earlier meals and can plan them again
 - Plan this week or next, by hand and/or with **Suggest dinners**: a seasonal mix of old favorites, regulars and new recipes that varies protein and cooking style
 - **Build grocery list** → "What do we have?" review. Ingredients are merged and grouped by section, and only what you need goes on the list.
 - Rebuilding only adds what's new, and removing a meal offers to take its items back off
