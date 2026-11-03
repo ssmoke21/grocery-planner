@@ -16,6 +16,7 @@ import RecipeDetail from "./RecipeDetail.jsx";
 import RecipeForm from "./RecipeForm.jsx";
 import ImportRecipes from "./ImportRecipes.jsx";
 import { deleteRecipe, addToPlan, copyRecipe, setPlanScale } from "./recipeApi.js";
+import { householdLook } from "../fun.js";
 
 const EMPTY_FILTERS = { household: [], usage: [], rating: [], info: [], meal: [], protein: [], difficulty: [], time: [], method: [], season: [] };
 
@@ -107,7 +108,7 @@ export default function RecipeLibrary({ household, profiles, ledger = [], recipe
   const ownerOptions = useMemo(() => {
     const ids = [...new Set(recipes.map((r) => r.owner_id).filter((id) => profiles[id]))];
     return ids
-      .map((id) => ({ key: id, label: id === myId ? `${profiles[id].name} (you)` : profiles[id].name }))
+      .map((id) => ({ key: id, label: `${householdLook(profiles[id]).emoji} ${profiles[id].name}${id === myId ? " (you)" : ""}` }))
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [recipes, profiles, myId]);
 
@@ -275,8 +276,8 @@ export default function RecipeLibrary({ household, profiles, ledger = [], recipe
       <div style={styles.content}>
         <div style={styles.emptyState}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📖</div>
-          <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 6px", color: "#555" }}>No recipes yet</p>
-          <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 20px" }}>
+          <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 6px", color: "var(--fg-555555)" }}>A blank cookbook!</p>
+          <p style={{ fontSize: 13, color: "var(--fg-aaaaaa)", margin: "0 0 20px" }}>
             Load a few samples to try things out.
           </p>
           <button
@@ -285,7 +286,7 @@ export default function RecipeLibrary({ household, profiles, ledger = [], recipe
             disabled={seeding}
             style={styles.sampleBtn}
           >{seeding ? "Adding…" : "Load 4 sample recipes"}</button>
-          <p style={{ fontSize: 13, color: "#aaa", margin: "18px 0 0" }}>
+          <p style={{ fontSize: 13, color: "var(--fg-aaaaaa)", margin: "18px 0 0" }}>
             …or add your own with the buttons below.
           </p>
         </div>
@@ -315,8 +316,8 @@ export default function RecipeLibrary({ household, profiles, ledger = [], recipe
           onClick={() => setPanelOpen((o) => !o)}
           style={{
             ...styles.toolBtn,
-            borderColor: filterCount ? "#8a4a22" : "#e0dfd8",
-            color: filterCount ? "#8a4a22" : "#777",
+            borderColor: filterCount ? "var(--ln-8a4a22)" : "var(--ln-e0dfd8)",
+            color: filterCount ? "var(--fg-8a4a22)" : "var(--fg-777777)",
           }}
         >
           Filters{filterCount ? ` (${filterCount})` : ""}
@@ -330,9 +331,9 @@ export default function RecipeLibrary({ household, profiles, ledger = [], recipe
           onClick={() => setInSeasonNow((v) => !v)}
           style={{
             ...styles.toolBtn,
-            background: inSeasonNow ? "#8a4a22" : "white",
-            borderColor: inSeasonNow ? "#8a4a22" : "#e0dfd8",
-            color: inSeasonNow ? "white" : "#777",
+            background: inSeasonNow ? "var(--bg-8a4a22)" : "var(--bg-ffffff)",
+            borderColor: inSeasonNow ? "var(--ln-8a4a22)" : "var(--ln-e0dfd8)",
+            color: inSeasonNow ? "var(--fg-ffffff)" : "var(--fg-777777)",
           }}
         >{SEASON_LABEL.icon} In season</button>
         <select value={sort} onChange={(e) => setSort(e.target.value)} style={styles.sortSelect}>
@@ -352,8 +353,8 @@ export default function RecipeLibrary({ household, profiles, ledger = [], recipe
                   onClick={() => setWhose(o.key)}
                   style={{
                     ...styles.segmentBtn,
-                    background: whose === o.key ? "white" : "transparent",
-                    color: whose === o.key ? "#8a4a22" : "#8a8478",
+                    background: whose === o.key ? "var(--bg-ffffff)" : "transparent",
+                    color: whose === o.key ? "var(--fg-8a4a22)" : "var(--fg-8a8478)",
                     boxShadow: whose === o.key ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
                   }}
                 >{o.label}</button>
@@ -373,9 +374,9 @@ export default function RecipeLibrary({ household, profiles, ledger = [], recipe
                       onClick={() => toggleFilter(g.key, o.key)}
                       style={{
                         ...styles.chip,
-                        background: on ? "#8a4a22" : "#f4f3ee",
-                        color: on ? "white" : "#555",
-                        borderColor: on ? "#8a4a22" : "#e8e6dc",
+                        background: on ? "var(--bg-8a4a22)" : "var(--bg-f4f3ee)",
+                        color: on ? "var(--fg-ffffff)" : "var(--fg-555555)",
+                        borderColor: on ? "var(--ln-8a4a22)" : "var(--ln-e8e6dc)",
                       }}
                     >
                       {o.icon ? `${o.icon} ` : ""}{o.label}
@@ -391,7 +392,7 @@ export default function RecipeLibrary({ household, profiles, ledger = [], recipe
             <button
               className="primary-btn"
               onClick={() => setPanelOpen(false)}
-              style={{ ...styles.panelBtn, background: "#8a4a22", color: "white", border: "none" }}
+              style={{ ...styles.panelBtn, background: "var(--bg-8a4a22)", color: "var(--fg-ffffff)", border: "none" }}
             >Show {visible.length}</button>
           </div>
         </div>
@@ -411,7 +412,8 @@ export default function RecipeLibrary({ household, profiles, ledger = [], recipe
       {/* ── Cards ── */}
       {visible.length === 0 ? (
         <div style={{ ...styles.emptyState, padding: "40px 20px" }}>
-          <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 12px", color: "#777" }}>No recipes match</p>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>🤷</div>
+          <p style={{ fontSize: 14, fontWeight: 600, margin: "0 0 12px", color: "var(--fg-777777)" }}>No recipes match — maybe loosen a filter or two?</p>
           <button className="secondary-btn" onClick={clearAll} style={{ ...styles.panelBtn, flex: "none", padding: "10px 20px" }}>
             Clear filters
           </button>
@@ -438,7 +440,7 @@ export default function RecipeLibrary({ household, profiles, ledger = [], recipe
                   return o.length > 0 && <div style={styles.popular}>🔥 Made by {madeByLabel(o)}</div>;
                 })()}
                 {ownerName(r) && !isMine(r) && view === "cards" && (
-                  <div style={styles.from}>from {ownerName(r)}</div>
+                  <div style={styles.from}>from {householdLook(profiles[r.owner_id]).emoji} {ownerName(r)}</div>
                 )}
               </div>
             </button>
@@ -455,40 +457,40 @@ const font = "'DM Sans', sans-serif";
 
 const styles = {
   content: { padding: "10px 16px" },
-  hint: { fontSize: 12, color: "#a0998a", margin: "4px 2px 10px", letterSpacing: "0.01em" },
-  emptyState: { textAlign: "center", padding: "70px 20px", color: "#aaa" },
+  hint: { fontSize: 12, color: "var(--fg-a0998a)", margin: "4px 2px 10px", letterSpacing: "0.01em" },
+  emptyState: { textAlign: "center", padding: "70px 20px", color: "var(--fg-aaaaaa)" },
   sampleBtn: {
     padding: "13px 24px", borderRadius: 12, border: "none",
-    background: "linear-gradient(135deg, #5a2c14 0%, #8a4a22 100%)",
-    color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,
+    background: "linear-gradient(135deg, var(--bg-5a2c14) 0%, var(--bg-8a4a22) 100%)",
+    color: "var(--fg-ffffff)", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
   searchWrap: { position: "relative", margin: "6px 0 10px" },
   searchIcon: { position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", fontSize: 14, opacity: 0.5 },
   searchInput: {
     width: "100%", boxSizing: "border-box",
     padding: "13px 14px 13px 38px", borderRadius: 12,
-    border: "1.5px solid #e4e2d8", background: "white",
+    border: "1.5px solid var(--ln-e4e2d8)", background: "var(--bg-ffffff)",
     fontSize: 16, fontFamily: font, outline: "none",
   },
   toolbar: { display: "flex", gap: 8, marginBottom: 10 },
   toolBtn: {
     display: "flex", alignItems: "center", gap: 6,
-    padding: "10px 13px", borderRadius: 10, border: "1.5px solid #e0dfd8",
-    background: "white", fontSize: 13, fontWeight: 600,
+    padding: "10px 13px", borderRadius: 10, border: "1.5px solid var(--ln-e0dfd8)",
+    background: "var(--bg-ffffff)", fontSize: 13, fontWeight: 600,
     cursor: "pointer", fontFamily: font, whiteSpace: "nowrap",
   },
   chevron: { fontSize: 8, transition: "transform 0.22s ease", display: "inline-block" },
   sortSelect: {
     flex: 1, minWidth: 0, padding: "10px 8px", borderRadius: 10,
-    border: "1.5px solid #e0dfd8", background: "white",
-    fontSize: 13, fontWeight: 600, color: "#777", fontFamily: font,
+    border: "1.5px solid var(--ln-e0dfd8)", background: "var(--bg-ffffff)",
+    fontSize: 13, fontWeight: 600, color: "var(--fg-777777)", fontFamily: font,
   },
   panel: {
-    background: "white", borderRadius: 14, padding: "14px 14px 12px", marginBottom: 10,
+    background: "var(--bg-ffffff)", borderRadius: 14, padding: "14px 14px 12px", marginBottom: 10,
     boxShadow: "0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)",
   },
   groupTitle: {
-    fontSize: 11, fontWeight: 700, color: "#8a4a22",
+    fontSize: 11, fontWeight: 700, color: "var(--fg-8a4a22)",
     letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 7,
   },
   chipRow: { display: "flex", flexWrap: "wrap", gap: 6 },
@@ -499,32 +501,32 @@ const styles = {
   },
   panelBtn: {
     flex: 1, padding: "11px", borderRadius: 10,
-    border: "1.5px solid #e0dfd8", background: "white",
-    color: "#888", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: font,
+    border: "1.5px solid var(--ln-e0dfd8)", background: "var(--bg-ffffff)",
+    color: "var(--fg-888888)", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
   recipeCard: {
     display: "flex", alignItems: "center", gap: 14, width: "100%",
-    padding: 12, border: "none", borderRadius: 14, background: "white",
+    padding: 12, border: "none", borderRadius: 14, background: "var(--bg-ffffff)",
     boxShadow: "0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)",
     textAlign: "left", cursor: "pointer", fontFamily: font,
   },
   hintRow: { display: "flex", alignItems: "center", justifyContent: "space-between", margin: "2px 2px 8px" },
   viewBtn: {
-    padding: "7px 10px", border: "none", background: "transparent", color: "#8a8478",
+    padding: "7px 10px", border: "none", background: "transparent", color: "var(--fg-8a8478)",
     fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
-  missing: { fontSize: 11, color: "#b07a1e", marginTop: 3, fontWeight: 600 },
-  from: { fontSize: 11, color: "#a0998a", marginTop: 3, fontWeight: 500 },
-  popular: { fontSize: 12, color: "#b5521b", marginTop: 4, fontWeight: 600 },
-  segment: { display: "flex", gap: 3, padding: 3, borderRadius: 11, background: "#efede6" },
+  missing: { fontSize: 11, color: "var(--fg-b07a1e)", marginTop: 3, fontWeight: 600 },
+  from: { fontSize: 11, color: "var(--fg-a0998a)", marginTop: 3, fontWeight: 500 },
+  popular: { fontSize: 12, color: "var(--fg-b5521b)", marginTop: 4, fontWeight: 600 },
+  segment: { display: "flex", gap: 3, padding: 3, borderRadius: 11, background: "var(--bg-efede6)" },
   segmentBtn: {
     flex: 1, padding: "9px 0", borderRadius: 9, border: "none",
     fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
-  cardName: { fontSize: 15, fontWeight: 700, color: "#222", marginBottom: 6, letterSpacing: "-0.01em", lineHeight: 1.3 },
+  cardName: { fontSize: 15, fontWeight: 700, color: "var(--fg-222222)", marginBottom: 6, letterSpacing: "-0.01em", lineHeight: 1.3 },
   bottomBar: {
     position: "fixed", bottom: 0, left: 0, right: 0,
-    background: "rgba(247,246,241,0.92)",
+    background: "var(--bar)",
     backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
     borderTop: "1px solid rgba(0,0,0,0.07)",
     padding: "10px 16px 16px", display: "flex", gap: 10, justifyContent: "center",
@@ -533,12 +535,12 @@ const styles = {
   },
   secondaryBtn: {
     flex: 1, padding: "13px", borderRadius: 12,
-    border: "1.5px solid #e0dfd8", background: "white",
-    color: "#888", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font,
+    border: "1.5px solid var(--ln-e0dfd8)", background: "var(--bg-ffffff)",
+    color: "var(--fg-888888)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font,
   },
   primaryBtn: {
     flex: 2, padding: "13px", borderRadius: 12, border: "none",
-    background: "linear-gradient(135deg, #5a2c14 0%, #8a4a22 100%)",
-    color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,
+    background: "linear-gradient(135deg, var(--bg-5a2c14) 0%, var(--bg-8a4a22) 100%)",
+    color: "var(--fg-ffffff)", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
 };

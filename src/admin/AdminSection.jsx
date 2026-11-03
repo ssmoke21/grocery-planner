@@ -20,15 +20,15 @@ export default function AdminSection({ household, showToast }) {
             onClick={() => setOpenKey(t.key)}
             style={{
               ...styles.row,
-              borderBottom: idx < ADMIN_TOOLS.length - 1 ? "1px solid #f0efe8" : "none",
+              borderBottom: idx < ADMIN_TOOLS.length - 1 ? "1px solid var(--ln-f0efe8)" : "none",
             }}
           >
             <span style={{ fontSize: 22 }}>{t.icon}</span>
             <span style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ display: "block", fontSize: 15, fontWeight: 700, color: "#222" }}>{t.title}</span>
-              <span style={{ display: "block", fontSize: 12, color: "#a0998a", marginTop: 2 }}>{t.description}</span>
+              <span style={{ display: "block", fontSize: 15, fontWeight: 700, color: "var(--fg-222222)" }}>{t.title}</span>
+              <span style={{ display: "block", fontSize: 12, color: "var(--fg-a0998a)", marginTop: 2 }}>{t.description}</span>
             </span>
-            <span style={{ color: "#c8c5ba", fontSize: 18 }}>›</span>
+            <span style={{ color: "var(--fg-c8c5ba)", fontSize: 18 }}>›</span>
           </button>
         ))}
       </div>
@@ -45,7 +45,7 @@ export default function AdminSection({ household, showToast }) {
 const styles = {
   row: {
     display: "flex", alignItems: "center", gap: 12, width: "100%",
-    padding: "14px 14px", border: "none", background: "white",
+    padding: "14px 14px", border: "none", background: "var(--bg-ffffff)",
     textAlign: "left", cursor: "pointer", fontFamily: font,
   },
 };

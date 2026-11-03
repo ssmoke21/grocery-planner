@@ -4,7 +4,7 @@ import { applyGroceryWrites, newGroceryItemId } from "./recipeApi.js";
 import { SECTION_ICONS } from "../sections.js";
 import { ui, font, useBodyScrollLock, useBackToClose } from "./ui.js";
 
-const GREEN = "#4A7C24";
+const GREEN = "var(--ac-4a7c24)";
 
 export default function GroceryReview({ code, week, ledger, recipes, groceryItems, onClose, onAdded, showToast }) {
   useBodyScrollLock();
@@ -80,8 +80,8 @@ export default function GroceryReview({ code, week, ledger, recipes, groceryItem
         )}
 
         {sections.length === 0 && (
-          <p style={{ textAlign: "center", color: "#aaa", fontSize: 14, padding: "40px 0" }}>
-            {alreadyAdded > 0 ? "Everything for this plan is already handled." : "None of these recipes have ingredients saved."}
+          <p style={{ textAlign: "center", color: "var(--fg-aaaaaa)", fontSize: 14, padding: "40px 0" }}>
+            {alreadyAdded > 0 ? "🎉 Nothing new to buy — this plan is already covered." : "📝 None of these recipes have ingredients saved yet."}
           </p>
         )}
 
@@ -106,13 +106,13 @@ export default function GroceryReview({ code, week, ledger, recipes, groceryItem
                       onClick={() => toggle(item.key)}
                       style={{
                         ...styles.row,
-                        borderBottom: idx < items.length - 1 ? "1px solid #f0efe8" : "none",
-                        background: isHave ? "#f8f8f4" : "white",
+                        borderBottom: idx < items.length - 1 ? "1px solid var(--ln-f0efe8)" : "none",
+                        background: isHave ? "var(--bg-f8f8f4)" : "var(--bg-ffffff)",
                       }}
                     >
                       <div style={{ flex: 1, minWidth: 0, opacity: isHave ? 0.45 : 1 }}>
                         <div style={{
-                          fontSize: 15, fontWeight: 600, color: "#222",
+                          fontSize: 15, fontWeight: 600, color: "var(--fg-222222)",
                           textDecoration: isHave ? "line-through" : "none",
                         }}>
                           {item.name}
@@ -132,8 +132,8 @@ export default function GroceryReview({ code, week, ledger, recipes, groceryItem
                       </div>
                       <span style={{
                         ...styles.pill,
-                        background: isHave ? "#eceae2" : GREEN,
-                        color: isHave ? "#888" : "white",
+                        background: isHave ? "var(--bg-eceae2)" : GREEN,
+                        color: isHave ? "var(--fg-888888)" : "var(--fg-ffffff)",
                       }}>{isHave ? "Have" : "Need"}</span>
                     </button>
                   );
@@ -161,23 +161,23 @@ export default function GroceryReview({ code, week, ledger, recipes, groceryItem
 }
 
 const styles = {
-  intro: { fontSize: 14, color: "#666", margin: "2px 2px 6px", lineHeight: 1.5 },
+  intro: { fontSize: 14, color: "var(--fg-666666)", margin: "2px 2px 6px", lineHeight: 1.5 },
   addedNote: {
     marginTop: 10, padding: "12px 14px", borderRadius: 12,
-    background: "#EEF3EA", color: "#2D5016", fontSize: 13, lineHeight: 1.5,
+    background: "var(--bg-eef3ea)", color: "var(--fg-2d5016)", fontSize: 13, lineHeight: 1.5,
   },
   notice: {
     marginTop: 10, padding: "12px 14px", borderRadius: 12,
-    background: "#FFF6DD", color: "#6b5310", fontSize: 13, lineHeight: 1.6,
+    background: "var(--bg-fff6dd)", color: "var(--fg-6b5310)", fontSize: 13, lineHeight: 1.6,
   },
   sectionHead: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
     padding: "18px 2px 8px",
-    fontSize: 13, fontWeight: 700, color: "#3a5c1a",
+    fontSize: 13, fontWeight: 700, color: "var(--fg-3a5c1a)",
     letterSpacing: "0.04em", textTransform: "uppercase",
   },
   markAll: {
-    border: "none", background: "transparent", color: "#8a8478",
+    border: "none", background: "transparent", color: "var(--fg-8a8478)",
     fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: font,
     padding: "6px 4px", textTransform: "none", letterSpacing: 0,
   },
@@ -186,11 +186,11 @@ const styles = {
     padding: "13px 14px", border: "none", textAlign: "left",
     cursor: "pointer", fontFamily: font,
   },
-  amount: { fontWeight: 600, color: "#888", fontSize: 13 },
-  meta: { fontSize: 12, color: "#a0998a", marginTop: 3 },
+  amount: { fontWeight: 600, color: "var(--fg-888888)", fontSize: 13 },
+  meta: { fontSize: 12, color: "var(--fg-a0998a)", marginTop: 3 },
   onList: {
     display: "inline-block", marginTop: 6, fontSize: 11, fontWeight: 700,
-    padding: "3px 8px", borderRadius: 10, background: "#E3F2FD", color: "#1565C0",
+    padding: "3px 8px", borderRadius: 10, background: "var(--bg-e3f2fd)", color: "var(--fg-1565c0)",
   },
   pill: {
     flexShrink: 0, minWidth: 54, textAlign: "center",
@@ -199,13 +199,13 @@ const styles = {
   },
   footer: {
     position: "sticky", bottom: 0, padding: "10px 16px 16px",
-    background: "rgba(247,246,241,0.92)",
+    background: "var(--bar)",
     backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
     borderTop: "1px solid rgba(0,0,0,0.07)",
   },
   addBtn: {
     width: "100%", padding: "15px", borderRadius: 12, border: "none",
-    background: "linear-gradient(135deg, #2D5016 0%, #4A7C24 100%)",
-    color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: font,
+    background: "linear-gradient(135deg, var(--bg-2d5016) 0%, var(--bg-4a7c24) 100%)",
+    color: "var(--fg-ffffff)", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
 };

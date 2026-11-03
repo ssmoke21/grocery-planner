@@ -68,7 +68,7 @@ export default function HouseholdGate() {
     return (
       <div style={styles.screen}>
         <div className="loading-icon" style={{ fontSize: 52, marginBottom: 18 }}>🛒</div>
-        <div style={{ color: "#aaa", fontSize: 14 }}>Loading…</div>
+        <div style={{ color: "var(--fg-aaaaaa)", fontSize: 14 }}>Loading…</div>
       </div>
     );
   }
@@ -116,27 +116,27 @@ const styles = {
   screen: {
     display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
     minHeight: "100vh", padding: "0 16px", boxSizing: "border-box",
-    fontFamily: font, background: "#F7F6F1",
+    fontFamily: font, background: "var(--bg-f7f6f1)",
   },
   card: {
-    width: "100%", maxWidth: 380, boxSizing: "border-box", textAlign: "center", background: "white",
+    width: "100%", maxWidth: 380, boxSizing: "border-box", textAlign: "center", background: "var(--bg-ffffff)",
     borderRadius: 20, padding: "32px 22px 24px",
     boxShadow: "0 8px 30px rgba(0,0,0,0.08)",
   },
   title: {
     fontFamily: "'Fraunces', serif", fontStyle: "italic", fontWeight: 500,
-    fontSize: 26, margin: "0 0 6px", color: "#1e3a0f",
+    fontSize: 26, margin: "0 0 6px", color: "var(--fg-1e3a0f)",
   },
-  body: { fontSize: 14, color: "#777", margin: "0 0 18px", lineHeight: 1.5 },
+  body: { fontSize: 14, color: "var(--fg-777777)", margin: "0 0 18px", lineHeight: 1.5 },
   input: {
     width: "100%", boxSizing: "border-box", padding: "13px 14px", borderRadius: 12,
-    border: "1.5px solid #e4e2d8", fontSize: 16, fontFamily: font, outline: "none",
+    border: "1.5px solid var(--ln-e4e2d8)", fontSize: 16, fontFamily: font, outline: "none",
   },
-  error: { fontSize: 13, color: "#b3261e", margin: "10px 0 0", lineHeight: 1.45 },
+  error: { fontSize: 13, color: "var(--fg-b3261e)", margin: "10px 0 0", lineHeight: 1.45 },
   button: {
     width: "100%", marginTop: 14, padding: "14px", borderRadius: 12, border: "none",
-    background: "linear-gradient(135deg, #1e3a0f 0%, #3a6b1a 100%)",
-    color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: font,
+    background: "linear-gradient(135deg, var(--bg-1e3a0f) 0%, var(--bg-3a6b1a) 100%)",
+    color: "var(--fg-ffffff)", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
-  footnote: { fontSize: 12, color: "#aaa", margin: "16px 0 0", lineHeight: 1.5 },
+  footnote: { fontSize: 12, color: "var(--fg-aaaaaa)", margin: "16px 0 0", lineHeight: 1.5 },
 };

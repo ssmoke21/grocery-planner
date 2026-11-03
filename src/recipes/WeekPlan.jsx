@@ -7,9 +7,11 @@ import RecipeDetail from "./RecipeDetail.jsx";
 import GroceryReview from "./GroceryReview.jsx";
 import MealSuggestions from "./MealSuggestions.jsx";
 import PastWeeks from "./PastWeeks.jsx";
+import SurpriseMe from "./SurpriseMe.jsx";
+import Milestones from "./Milestones.jsx";
 import { ui, font, useBodyScrollLock, useBackToClose } from "./ui.js";
 
-const TEAL = "#2f6b63";
+const TEAL = "var(--ac-2f6b63)";
 const WEEKS = [
   { offset: 0, label: "This week" },
   { offset: 1, label: "Next week" },
@@ -24,6 +26,7 @@ export default function WeekPlan({ code, publicId, profiles = {}, ledger = [], r
   const [showPast, setShowPast]   = useState(false);
   const [picking, setPicking]     = useState(false);
   const [suggesting, setSuggesting] = useState(false);
+  const [surprise, setSurprise]   = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [openId, setOpenId]       = useState(null);
 
@@ -66,8 +69,8 @@ export default function WeekPlan({ code, publicId, profiles = {}, ledger = [], r
             onClick={() => setOffset(w.offset)}
             style={{
               ...styles.weekPill,
-              background: offset === w.offset ? "white" : "transparent",
-              color: offset === w.offset ? TEAL : "#8a8478",
+              background: offset === w.offset ? "var(--bg-ffffff)" : "transparent",
+              color: offset === w.offset ? TEAL : "var(--ac-8a8478)",
               boxShadow: offset === w.offset ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
             }}
           >
@@ -79,10 +82,12 @@ export default function WeekPlan({ code, publicId, profiles = {}, ledger = [], r
 
       {/* ── Planned meals ── */}
       {planned.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 20px 20px", color: "#aaa" }}>
-          <div style={{ fontSize: 44, marginBottom: 10 }}>🗓️</div>
-          <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px", color: "#555" }}>No meals planned yet</p>
-          <p style={{ fontSize: 13, margin: 0 }}>Pick a few recipes for {offset ? "next" : "this"} week.</p>
+        <div style={{ textAlign: "center", padding: "48px 20px 20px", color: "var(--fg-aaaaaa)" }}>
+          <div style={{ fontSize: 44, marginBottom: 10 }}>🍳</div>
+          <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px", color: "var(--fg-555555)" }}>The kitchen's quiet</p>
+          <p style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+            Nothing planned for {offset ? "next" : "this"} week yet. Try ✨ Suggest dinners, or let 🎰 Surprise me pick one.
+          </p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -95,7 +100,7 @@ export default function WeekPlan({ code, publicId, profiles = {}, ledger = [], r
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={styles.mealName}>{p.recipe.name}</div>
                     <RecipeTags recipe={p.recipe} />
-                    <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: n ? "#a0998a" : "#c08a1e" }}>
+                    <div style={{ fontSize: 12, marginTop: 6, fontWeight: 600, color: n ? "var(--fg-a0998a)" : "var(--fg-c08a1e)" }}>
                       {n ? `${n} ingredient${n !== 1 ? "s" : ""}` : "No ingredients saved"}
                       {p.entry.scale && p.entry.scale !== 1 ? ` · ×${Math.round(p.entry.scale * 100) / 100}` : ""}
                     </div>
@@ -117,6 +122,12 @@ export default function WeekPlan({ code, publicId, profiles = {}, ledger = [], r
         </button>
       </div>
 
+      <button className="add-trigger-btn" onClick={() => setSurprise(true)} style={styles.addBtn}>
+        🎰 Surprise me
+      </button>
+
+      <Milestones recipes={recipes} mealPlan={mealPlan} publicId={publicId} showToast={showToast} />
+
       <button onClick={() => setShowPast(true)} style={styles.pastBtn}>🕘 Past weeks</button>
 
       {/* ── Bottom bar ── */}
@@ -128,7 +139,7 @@ export default function WeekPlan({ code, publicId, profiles = {}, ledger = [], r
           style={{
             ...styles.primaryBtn,
             background: planned.length
-              ? "linear-gradient(135deg, #2D5016 0%, #4A7C24 100%)" : "#d4d3cc",
+              ? "linear-gradient(135deg, var(--bg-2d5016) 0%, var(--bg-4a7c24) 100%)" : "var(--bg-d4d3cc)",
             cursor: planned.length ? "pointer" : "default",
           }}
         >🛒 Build grocery list</button>
@@ -146,6 +157,18 @@ export default function WeekPlan({ code, publicId, profiles = {}, ledger = [], r
           usage={usage}
           showToast={showToast}
           onClose={() => setShowPast(false)}
+        />
+      )}
+
+      {surprise && (
+        <SurpriseMe
+          recipes={recipes}
+          usage={usage}
+          publicId={publicId}
+          isPlanned={(id) => !!entryFor(id)}
+          weekLabel={offset ? "next week" : "this week"}
+          onAdd={(r) => togglePlan(r)}
+          onClose={() => setSurprise(false)}
         />
       )}
 
@@ -235,8 +258,8 @@ function RecipePicker({ recipes, usage, isPlanned, onToggle, title, onClose }) {
           style={{ ...ui.input, marginBottom: 12 }}
         />
         {list.length === 0 && (
-          <p style={{ textAlign: "center", color: "#aaa", fontSize: 14, padding: "30px 0" }}>
-            {recipes.length ? "No recipes match." : "Your library is empty — add recipes first."}
+          <p style={{ textAlign: "center", color: "var(--fg-aaaaaa)", fontSize: 14, padding: "30px 0" }}>
+            {recipes.length ? "No recipes match — try another word? 🔍" : "Your cookbook is empty — add a few recipes first. 📖"}
           </p>
         )}
         <div style={ui.card}>
@@ -249,19 +272,19 @@ function RecipePicker({ recipes, usage, isPlanned, onToggle, title, onClose }) {
                 onClick={() => onToggle(r)}
                 style={{
                   ...styles.pickRow,
-                  borderBottom: idx < list.length - 1 ? "1px solid #f0efe8" : "none",
-                  background: on ? "#eef6f4" : "white",
+                  borderBottom: idx < list.length - 1 ? "1px solid var(--ln-f0efe8)" : "none",
+                  background: on ? "var(--bg-eef6f4)" : "var(--bg-ffffff)",
                 }}
               >
                 <RecipeThumb recipe={r} size={40} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#222" }}>{r.name}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--fg-222222)" }}>{r.name}</div>
                   <UsageLine usage={usage[r.id]} style={{ marginTop: 2 }} />
                 </div>
                 <span style={{
                   ...styles.pickPill,
-                  background: on ? TEAL : "white",
-                  color: on ? "white" : TEAL,
+                  background: on ? TEAL : "var(--ac-ffffff)",
+                  color: on ? "var(--fg-ffffff)" : TEAL,
                 }}>{on ? "✓ Added" : "+ Add"}</span>
               </button>
             );
@@ -275,38 +298,38 @@ function RecipePicker({ recipes, usage, isPlanned, onToggle, title, onClose }) {
 const styles = {
   weekPills: {
     display: "flex", gap: 4, padding: 4, borderRadius: 14,
-    background: "#ebe9e1", margin: "6px 0 14px",
+    background: "var(--bg-ebe9e1)", margin: "6px 0 14px",
   },
   weekPill: {
     flex: 1, padding: "9px 6px", borderRadius: 11, border: "none",
     fontSize: 14, cursor: "pointer", fontFamily: font, lineHeight: 1.3,
   },
   mealCard: {
-    display: "flex", alignItems: "stretch", background: "white", borderRadius: 14, overflow: "hidden",
+    display: "flex", alignItems: "stretch", background: "var(--bg-ffffff)", borderRadius: 14, overflow: "hidden",
     boxShadow: "0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)",
   },
   mealMain: {
     flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 12,
-    padding: 12, border: "none", background: "white",
+    padding: 12, border: "none", background: "var(--bg-ffffff)",
     textAlign: "left", cursor: "pointer", fontFamily: font,
   },
-  mealName: { fontSize: 15, fontWeight: 700, color: "#222", marginBottom: 6, lineHeight: 1.3 },
+  mealName: { fontSize: 15, fontWeight: 700, color: "var(--fg-222222)", marginBottom: 6, lineHeight: 1.3 },
   removeBtn: {
-    width: 52, flexShrink: 0, border: "none", borderLeft: "1px solid #f0efe8",
-    background: "white", color: "#b0aa9c", fontSize: 16, cursor: "pointer", fontFamily: font,
+    width: 52, flexShrink: 0, border: "none", borderLeft: "1px solid var(--ln-f0efe8)",
+    background: "var(--bg-ffffff)", color: "var(--fg-b0aa9c)", fontSize: 16, cursor: "pointer", fontFamily: font,
   },
   pastBtn: {
     display: "block", width: "100%", marginTop: 6, padding: "12px", border: "none", background: "transparent",
-    color: "#8a8478", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: font,
+    color: "var(--fg-8a8478)", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
   addBtn: {
     width: "100%", marginTop: 12, padding: "14px", borderRadius: 12,
-    border: `1.5px dashed ${TEAL}66`, background: "transparent",
+    border: `1.5px dashed color-mix(in srgb, ${TEAL} 40%, transparent)`, background: "transparent",
     color: TEAL, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
   bottomBar: {
     position: "fixed", bottom: 0, left: 0, right: 0,
-    background: "rgba(247,246,241,0.92)",
+    background: "var(--bar)",
     backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
     borderTop: "1px solid rgba(0,0,0,0.07)",
     padding: "10px 16px 16px", display: "flex", gap: 10, justifyContent: "center",
@@ -315,7 +338,7 @@ const styles = {
   },
   primaryBtn: {
     flex: 1, padding: "13px", borderRadius: 12, border: "none",
-    color: "white", fontSize: 14, fontWeight: 700, fontFamily: font,
+    color: "var(--fg-ffffff)", fontSize: 14, fontWeight: 700, fontFamily: font,
   },
   pickRow: {
     display: "flex", alignItems: "center", gap: 12, width: "100%",

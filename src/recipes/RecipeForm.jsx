@@ -130,9 +130,9 @@ export default function RecipeForm({ initial, ownerId, groceryItems, onCancel, o
           value={form.name}
           onChange={(e) => { set("name", e.target.value); setNameError(false); }}
           placeholder="e.g. Sheet Pan Lemon Chicken"
-          style={{ ...ui.input, borderColor: nameError ? "#c44" : "#e4e2d8" }}
+          style={{ ...ui.input, borderColor: nameError ? "var(--ln-cc4444)" : "var(--ln-e4e2d8)" }}
         />
-        {nameError && <p style={{ ...ui.hint, color: "#c44" }}>Give the recipe a name.</p>}
+        {nameError && <p style={{ ...ui.hint, color: "var(--fg-cc4444)" }}>Give the recipe a name.</p>}
 
         {/* ── Meal ── */}
         <div style={ui.sectionLabel}>Meal</div>
@@ -299,17 +299,17 @@ export default function RecipeForm({ initial, ownerId, groceryItems, onCancel, o
 const styles = {
   iconBtn: {
     width: 38, height: 42, flexShrink: 0, borderRadius: 10,
-    border: "1.5px solid #e4e2d8", background: "#fafaf7",
-    color: "#777", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: font,
+    border: "1.5px solid var(--ln-e4e2d8)", background: "var(--bg-fafaf7)",
+    color: "var(--fg-777777)", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
   addIngBtn: {
     width: "100%", marginTop: 8, padding: "13px", borderRadius: 12,
-    border: `1.5px dashed ${BROWN}55`, background: "transparent",
+    border: `1.5px dashed color-mix(in srgb, ${BROWN} 33%, transparent)`, background: "transparent",
     color: BROWN, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
   bigSave: {
     width: "100%", marginTop: 28, padding: "15px", borderRadius: 12, border: "none",
-    background: "linear-gradient(135deg, #5a2c14 0%, #8a4a22 100%)",
-    color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: font,
+    background: "linear-gradient(135deg, var(--bg-5a2c14) 0%, var(--bg-8a4a22) 100%)",
+    color: "var(--fg-ffffff)", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
 };

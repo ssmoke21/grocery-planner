@@ -109,7 +109,7 @@ export default function ImportRecipes({ recipes, ownerId, groceryItems, onClose,
               </div>
               {showPrompt && <pre style={styles.prompt}>{AI_PROMPT}</pre>}
             </div>
-            <p style={{ fontSize: 13, color: "#888", lineHeight: 1.5, margin: "14px 2px 8px" }}>
+            <p style={{ fontSize: 13, color: "var(--fg-888888)", lineHeight: 1.5, margin: "14px 2px 8px" }}>
               Paste the JSON here. Nothing is saved until you check and confirm.
             </p>
             <textarea
@@ -133,10 +133,10 @@ export default function ImportRecipes({ recipes, ownerId, groceryItems, onClose,
         ) : (
           <>
             <div style={{ ...ui.card, padding: "16px", marginTop: 4 }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "#222", fontFamily: "'Fraunces', serif", fontStyle: "italic" }}>
+              <div style={{ fontSize: 22, fontWeight: 700, color: "var(--fg-222222)", fontFamily: "'Fraunces', serif", fontStyle: "italic" }}>
                 {ready.length} recipe{ready.length !== 1 ? "s" : ""} ready
               </div>
-              <div style={{ fontSize: 13, color: "#888", marginTop: 4 }}>
+              <div style={{ fontSize: 13, color: "var(--fg-888888)", marginTop: 4 }}>
                 {[
                   skipped.length && `${skipped.length} skipped`,
                   warnCount && `${warnCount} thing${warnCount !== 1 ? "s" : ""} adjusted`,
@@ -149,9 +149,9 @@ export default function ImportRecipes({ recipes, ownerId, groceryItems, onClose,
                 <div key={i} style={{ ...ui.card, padding: "12px 14px", opacity: r.skip ? 0.6 : 1 }}>
                   <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
                     <span style={{ fontSize: 14 }}>{r.skip ? "⏭" : r.warnings.length ? "⚠️" : "✅"}</span>
-                    <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: "#222" }}>{r.label}</span>
+                    <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: "var(--fg-222222)" }}>{r.label}</span>
                     {r.recipe && (
-                      <span style={{ fontSize: 12, color: "#999", whiteSpace: "nowrap" }}>
+                      <span style={{ fontSize: 12, color: "var(--fg-999999)", whiteSpace: "nowrap" }}>
                         {r.recipe.ingredients.length} ingr.
                       </span>
                     )}
@@ -181,33 +181,33 @@ export default function ImportRecipes({ recipes, ownerId, groceryItems, onClose,
 const styles = {
   bigBtn: {
     width: "100%", marginTop: 14, padding: "15px", borderRadius: 12, border: "none",
-    background: "linear-gradient(135deg, #5a2c14 0%, #8a4a22 100%)",
-    color: "white", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: font,
+    background: "linear-gradient(135deg, var(--bg-5a2c14) 0%, var(--bg-8a4a22) 100%)",
+    color: "var(--fg-ffffff)", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
   backBtn: {
-    flex: 1, padding: "15px", borderRadius: 12, border: "1.5px solid #e0dfd8",
-    background: "white", color: "#777", fontSize: 14, fontWeight: 600,
+    flex: 1, padding: "15px", borderRadius: 12, border: "1.5px solid var(--ln-e0dfd8)",
+    background: "var(--bg-ffffff)", color: "var(--fg-777777)", fontSize: 14, fontWeight: 600,
     cursor: "pointer", fontFamily: font,
   },
-  howTitle: { fontSize: 15, fontWeight: 700, color: "#222", marginBottom: 6 },
-  steps: { margin: "0 0 12px", paddingLeft: 20, fontSize: 13, color: "#555", lineHeight: 1.6 },
+  howTitle: { fontSize: 15, fontWeight: 700, color: "var(--fg-222222)", marginBottom: 6 },
+  steps: { margin: "0 0 12px", paddingLeft: 20, fontSize: 13, color: "var(--fg-555555)", lineHeight: 1.6 },
   copyBtn: {
     flex: 1, padding: "12px", borderRadius: 10, border: "none",
-    background: "linear-gradient(135deg, #5a2c14 0%, #8a4a22 100%)",
-    color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,
+    background: "linear-gradient(135deg, var(--bg-5a2c14) 0%, var(--bg-8a4a22) 100%)",
+    color: "var(--fg-ffffff)", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
   peekBtn: {
-    padding: "12px 16px", borderRadius: 10, border: "1.5px solid #e0dfd8", background: "white",
-    color: "#777", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font,
+    padding: "12px 16px", borderRadius: 10, border: "1.5px solid var(--ln-e0dfd8)", background: "var(--bg-ffffff)",
+    color: "var(--fg-777777)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font,
   },
   prompt: {
-    marginTop: 10, padding: "10px 12px", borderRadius: 10, background: "#f6f5f0",
-    fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11, lineHeight: 1.5, color: "#444",
+    marginTop: 10, padding: "10px 12px", borderRadius: 10, background: "var(--bg-f6f5f0)",
+    fontFamily: "ui-monospace, Menlo, monospace", fontSize: 11, lineHeight: 1.5, color: "var(--fg-444444)",
     whiteSpace: "pre-wrap", wordBreak: "break-word", maxHeight: 260, overflowY: "auto", userSelect: "all",
   },
   errorBox: {
     marginTop: 10, padding: "12px 14px", borderRadius: 10,
-    background: "#FBE3E0", color: "#8c1d18", fontSize: 13, lineHeight: 1.5,
+    background: "var(--bg-fbe3e0)", color: "var(--fg-8c1d18)", fontSize: 13, lineHeight: 1.5,
   },
   note: { fontSize: 12, color: BROWN, marginTop: 5, lineHeight: 1.45, paddingLeft: 22 },
 };

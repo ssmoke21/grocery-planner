@@ -4,13 +4,13 @@ export const NOT_IN_A_WHILE_DAYS  = 60;  // "Not in a while" = not made in this 
 
 // ── Recipe options ───────────────────────────────────────────
 export const PROTEINS = [
-  { key: "chicken",    label: "Chicken",        icon: "🍗", tint: "#FFF1DC" },
-  { key: "fish",       label: "Fish / Seafood", icon: "🐟", tint: "#E1F0FA" },
-  { key: "beef",       label: "Beef",           icon: "🥩", tint: "#FBE3E0" },
-  { key: "turkey",     label: "Turkey",         icon: "🦃", tint: "#F4E9DC" },
-  { key: "pork",       label: "Pork",           icon: "🥓", tint: "#FCE6EC" },
-  { key: "vegetarian", label: "Vegetarian",     icon: "🥦", tint: "#E6F4DC" },
-  { key: "other",      label: "Other",          icon: "🍽️", tint: "#EEEDE6" },
+  { key: "chicken",    label: "Chicken",        icon: "🍗", tint: "var(--bg-fff1dc)" },
+  { key: "fish",       label: "Fish / Seafood", icon: "🐟", tint: "var(--bg-e1f0fa)" },
+  { key: "beef",       label: "Beef",           icon: "🥩", tint: "var(--bg-fbe3e0)" },
+  { key: "turkey",     label: "Turkey",         icon: "🦃", tint: "var(--bg-f4e9dc)" },
+  { key: "pork",       label: "Pork",           icon: "🥓", tint: "var(--bg-fce6ec)" },
+  { key: "vegetarian", label: "Vegetarian",     icon: "🥦", tint: "var(--bg-e6f4dc)" },
+  { key: "other",      label: "Other",          icon: "🍽️", tint: "var(--bg-eeede6)" },
 ];
 
 // A recipe can have several of these. Dinner suggestions only use "dinner" recipes.

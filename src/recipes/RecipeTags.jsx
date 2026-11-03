@@ -6,12 +6,12 @@ const D = byKey(DIFFICULTIES);
 const T = byKey(TIME_BUCKETS);
 
 const DIFF_COLORS = {
-  easy:   { bg: "#E8F5E9", text: "#2E7D32" },
-  medium: { bg: "#FFF3E0", text: "#E65100" },
-  hard:   { bg: "#FBE3E0", text: "#B3261E" },
+  easy:   { bg: "var(--bg-e8f5e9)", text: "var(--fg-2e7d32)" },
+  medium: { bg: "var(--bg-fff3e0)", text: "var(--fg-e65100)" },
+  hard:   { bg: "var(--bg-fbe3e0)", text: "var(--fg-b3261e)" },
 };
 
-export function Tag({ children, bg = "#f0efe8", color = "#666" }) {
+export function Tag({ children, bg = "var(--bg-f0efe8)", color = "var(--fg-666666)" }) {
   return (
     <span style={{
       fontSize: 11, padding: "3px 8px", borderRadius: 10,
@@ -36,17 +36,17 @@ export default function RecipeTags({ recipe, text = false, stars = 0 }) {
       d?.label,
     ].filter(Boolean);
     return (
-      <div style={{ fontSize: 12, color: "#777", fontWeight: 500, lineHeight: 1.45 }}>
-        {stars > 0 && <span style={{ color: "#c98f00", fontWeight: 700 }}>★{stars} · </span>}
+      <div style={{ fontSize: 12, color: "var(--fg-777777)", fontWeight: 500, lineHeight: 1.45 }}>
+        {stars > 0 && <span style={{ color: "var(--fg-c98f00)", fontWeight: 700 }}>★{stars} · </span>}
         {bits.join(" · ")}
       </div>
     );
   }
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-      {recipe.meals?.includes("side") && <Tag bg="#E6F2EF" color="#2f6b63">🥗 Side</Tag>}
-      {recipe.meals?.includes("dessert") && <Tag bg="#FBEBDD" color="#9a5a1f">🍪 Dessert</Tag>}
-      {p && <Tag bg={p.tint} color="#5a4a3a">{p.icon} {p.label}</Tag>}
+      {recipe.meals?.includes("side") && <Tag bg="var(--bg-e6f2ef)" color="var(--fg-2f6b63)">🥗 Side</Tag>}
+      {recipe.meals?.includes("dessert") && <Tag bg="var(--bg-fbebdd)" color="var(--fg-9a5a1f)">🍪 Dessert</Tag>}
+      {p && <Tag bg={p.tint} color="var(--fg-5a4a3a)">{p.icon} {p.label}</Tag>}
       {t && <Tag>⏱ {t.label}</Tag>}
       {d && <Tag bg={dc.bg} color={dc.text}>{d.label}</Tag>}
     </div>
@@ -67,7 +67,7 @@ export function RecipeThumb({ recipe, size = 64 }) {
 // "⭐ Made 4× · last Sep 14" — green normally, amber when it's been a while, grey if never.
 export function UsageLine({ usage, style }) {
   const s = usageStatus(usage);
-  const color = s.never ? "#b0aa9c" : s.stale ? "#b07a1e" : "#4A7C24";
+  const color = s.never ? "var(--fg-b0aa9c)" : s.stale ? "var(--fg-b07a1e)" : "var(--fg-4a7c24)";
   return (
     <div style={{ fontSize: 12, fontWeight: 600, color, ...style }}>
       {s.favorite && "⭐ "}{usageLabel(usage)}

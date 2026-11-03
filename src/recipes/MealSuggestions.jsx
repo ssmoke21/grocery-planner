@@ -5,7 +5,7 @@ import RecipeTags, { RecipeThumb } from "./RecipeTags.jsx";
 import RecipeDetail from "./RecipeDetail.jsx";
 import { ui, font, useBodyScrollLock, useBackToClose } from "./ui.js";
 
-const TEAL = "#2f6b63";
+const TEAL = "var(--ac-2f6b63)";
 const COUNTS = [3, 4, 5, 6, 7];
 
 // Optional helper on the This Week tab: suggests dinners to add. Nothing joins
@@ -109,9 +109,9 @@ export default function MealSuggestions({
               onClick={() => changeCount(n)}
               style={{
                 ...styles.countBtn,
-                background: count === n ? TEAL : "white",
-                color: count === n ? "white" : "#666",
-                borderColor: count === n ? TEAL : "#e0dfd8",
+                background: count === n ? TEAL : "var(--ac-ffffff)",
+                color: count === n ? "var(--fg-ffffff)" : "var(--fg-666666)",
+                borderColor: count === n ? TEAL : "var(--ac-e0dfd8)",
               }}
             >{n}</button>
           ))}
@@ -127,7 +127,7 @@ export default function MealSuggestions({
               const on = isPlanned(r.id);
               const made = madeByLabel(othersWhoMade(r, publicId, profiles));
               return (
-                <div key={r.id} style={{ ...ui.card, background: on ? "#eef6f4" : "white" }}>
+                <div key={r.id} style={{ ...ui.card, background: on ? "var(--bg-eef6f4)" : "var(--bg-ffffff)" }}>
                   <button onClick={() => setOpenId(r.id)} style={styles.main}>
                     <RecipeThumb recipe={r} size={52} />
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -145,8 +145,8 @@ export default function MealSuggestions({
                       onClick={() => onToggle(r)}
                       style={{
                         ...styles.addBtn,
-                        background: on ? "white" : TEAL,
-                        color: on ? TEAL : "white",
+                        background: on ? "var(--bg-ffffff)" : TEAL,
+                        color: on ? TEAL : "var(--ac-ffffff)",
                       }}
                     >{on ? "✓ Added · tap to remove" : "+ Add"}</button>
                   </div>
@@ -187,24 +187,24 @@ export default function MealSuggestions({
 }
 
 const styles = {
-  intro: { fontSize: 14, color: "#666", lineHeight: 1.5, margin: "2px 2px 12px" },
+  intro: { fontSize: 14, color: "var(--fg-666666)", lineHeight: 1.5, margin: "2px 2px 12px" },
   countRow: { display: "flex", alignItems: "center", gap: 6, margin: "0 2px 14px" },
-  countLabel: { flex: 1, fontSize: 13, fontWeight: 700, color: "#777" },
+  countLabel: { flex: 1, fontSize: 13, fontWeight: 700, color: "var(--fg-777777)" },
   countBtn: {
     width: 40, height: 40, borderRadius: 10, border: "1.5px solid",
     fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
-  empty: { textAlign: "center", color: "#999", fontSize: 14, lineHeight: 1.5, padding: "30px 10px" },
+  empty: { textAlign: "center", color: "var(--fg-999999)", fontSize: 14, lineHeight: 1.5, padding: "30px 10px" },
   main: {
     display: "flex", alignItems: "center", gap: 12, width: "100%", padding: "12px 12px 8px",
     border: "none", background: "transparent", textAlign: "left", cursor: "pointer", fontFamily: font,
   },
-  name: { fontSize: 15, fontWeight: 700, color: "#222", marginBottom: 6, lineHeight: 1.3 },
+  name: { fontSize: 15, fontWeight: 700, color: "var(--fg-222222)", marginBottom: 6, lineHeight: 1.3 },
   reason: { fontSize: 12, fontWeight: 600, color: TEAL, marginTop: 6 },
   actions: { display: "flex", gap: 8, padding: "0 12px 12px" },
   swapBtn: {
-    flex: 1, padding: "11px", borderRadius: 10, border: "1.5px solid #e0dfd8", background: "white",
-    color: "#666", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font,
+    flex: 1, padding: "11px", borderRadius: 10, border: "1.5px solid var(--ln-e0dfd8)", background: "var(--bg-ffffff)",
+    color: "var(--fg-666666)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font,
   },
   addBtn: {
     flex: 2, padding: "11px", borderRadius: 10, border: `1.5px solid ${TEAL}`,
@@ -212,17 +212,17 @@ const styles = {
   },
   footer: {
     position: "sticky", bottom: 0, display: "flex", gap: 10, padding: "10px 16px 16px",
-    background: "rgba(247,246,241,0.92)",
+    background: "var(--bar)",
     backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
     borderTop: "1px solid rgba(0,0,0,0.07)",
   },
   shuffleBtn: {
-    flex: 1, padding: "13px", borderRadius: 12, border: "1.5px solid #e0dfd8", background: "white",
-    color: "#666", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: font,
+    flex: 1, padding: "13px", borderRadius: 12, border: "1.5px solid var(--ln-e0dfd8)", background: "var(--bg-ffffff)",
+    color: "var(--fg-666666)", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: font,
   },
   addAllBtn: {
     flex: 2, padding: "13px", borderRadius: 12, border: "none",
-    background: "linear-gradient(135deg, #173a36 0%, #2f6b63 100%)",
-    color: "white", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,
+    background: "linear-gradient(135deg, var(--bg-173a36) 0%, var(--bg-2f6b63) 100%)",
+    color: "var(--fg-ffffff)", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: font,
   },
 };

@@ -5,7 +5,7 @@ import { RecipeThumb } from "./RecipeTags.jsx";
 import RecipeDetail from "./RecipeDetail.jsx";
 import { ui, font, useBodyScrollLock, useBackToClose } from "./ui.js";
 
-const TEAL = "#2f6b63";
+const TEAL = "var(--ac-2f6b63)";
 
 // Looks back at earlier weeks' meals, and can plan any of them again for next week.
 export default function PastWeeks({ code, publicId, profiles, recipes, mealPlan, usage, showToast, onClose }) {
@@ -59,7 +59,11 @@ export default function PastWeeks({ code, publicId, profiles, recipes, mealPlan,
 
       <div style={ui.body}>
         {weeks.length === 0 && (
-          <p style={styles.empty}>No past weeks yet. Meals you plan will show up here once their week has passed.</p>
+          <div style={styles.empty}>
+            <div style={{ fontSize: 44, marginBottom: 10 }}>🕰️</div>
+            <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px", color: "var(--fg-555555)" }}>No history yet</p>
+            <p style={{ margin: 0 }}>This is where your past meals will live once their week wraps up.</p>
+          </div>
         )}
 
         {weeks.map(({ week, meals }) => {
@@ -68,7 +72,7 @@ export default function PastWeeks({ code, publicId, profiles, recipes, mealPlan,
             <div key={week}>
               <div style={styles.weekHead}>
                 <span>
-                  <strong style={{ color: "#333" }}>{formatWeekRange(week)}</strong>
+                  <strong style={{ color: "var(--fg-333333)" }}>{formatWeekRange(week)}</strong>
                   {" · "}{meals.length} meal{meals.length !== 1 ? "s" : ""}
                 </span>
                 {canAddAll && (
@@ -82,7 +86,7 @@ export default function PastWeeks({ code, publicId, profiles, recipes, mealPlan,
                   return (
                     <div key={m.id} style={{
                       ...styles.row,
-                      borderBottom: idx < meals.length - 1 ? "1px solid #f0efe8" : "none",
+                      borderBottom: idx < meals.length - 1 ? "1px solid var(--ln-f0efe8)" : "none",
                     }}>
                       <button
                         onClick={() => recipe && setOpenId(recipe.id)}
@@ -104,7 +108,7 @@ export default function PastWeeks({ code, publicId, profiles, recipes, mealPlan,
                           disabled={busy || planned}
                           style={{
                             ...styles.againBtn,
-                            background: planned ? "#eef6f4" : "white",
+                            background: planned ? "var(--bg-eef6f4)" : "var(--bg-ffffff)",
                             borderColor: planned ? "transparent" : TEAL,
                           }}
                         >{planned ? "✓ Next week" : "+ Next week"}</button>
@@ -135,10 +139,10 @@ export default function PastWeeks({ code, publicId, profiles, recipes, mealPlan,
 }
 
 const styles = {
-  empty: { textAlign: "center", color: "#999", fontSize: 14, lineHeight: 1.5, padding: "40px 16px" },
+  empty: { textAlign: "center", color: "var(--fg-999999)", fontSize: 14, lineHeight: 1.5, padding: "40px 16px" },
   weekHead: {
     display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
-    minHeight: 36, padding: "16px 2px 6px", fontSize: 13, color: "#8a8478",
+    minHeight: 36, padding: "16px 2px 6px", fontSize: 13, color: "var(--fg-8a8478)",
   },
   allBtn: {
     flexShrink: 0, padding: "8px 4px", border: "none", background: "transparent",
@@ -149,9 +153,9 @@ const styles = {
     flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10, padding: "10px 0 10px 12px",
     border: "none", background: "transparent", textAlign: "left", cursor: "pointer", fontFamily: font,
   },
-  name: { display: "block", fontSize: 14, fontWeight: 600, color: "#222", lineHeight: 1.3 },
-  stars: { display: "block", fontSize: 12, fontWeight: 700, color: "#c98f00", marginTop: 2 },
-  gone: { display: "block", fontSize: 12, color: "#a0998a", marginTop: 2 },
+  name: { display: "block", fontSize: 14, fontWeight: 600, color: "var(--fg-222222)", lineHeight: 1.3 },
+  stars: { display: "block", fontSize: 12, fontWeight: 700, color: "var(--fg-c98f00)", marginTop: 2 },
+  gone: { display: "block", fontSize: 12, color: "var(--fg-a0998a)", marginTop: 2 },
   againBtn: {
     flexShrink: 0, minHeight: 40, padding: "8px 10px", borderRadius: 10, border: "1.5px solid",
     color: TEAL, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: font, whiteSpace: "nowrap",

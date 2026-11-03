@@ -64,7 +64,7 @@
   transition: background 0.15s ease;
 }
 .item-row:active {
-  background: #edf5e4 !important;
+  background: var(--row-active) !important;
 }
 
 .item-row-shop {
@@ -72,7 +72,7 @@
   cursor: pointer;
 }
 .item-row-shop:active {
-  background: #efefea !important;
+  background: var(--row-shop-active) !important;
 }
 
 .primary-btn {
@@ -116,7 +116,7 @@
   transition: color 0.15s ease, background 0.15s ease;
 }
 .add-trigger-btn:active {
-  background: #f0f7e8 !important;
+  background: var(--add-active) !important;
 }
 
 /* ── Recipes ────────────────────────────────────────────── */
@@ -135,7 +135,7 @@
 }
 .recipe-card:active {
   transform: scale(0.985);
-  background: #faf6f0 !important;
+  background: var(--card-active) !important;
 }
 
 .tab-btn {
@@ -143,4 +143,59 @@
 }
 .tab-btn:active {
   opacity: 0.75;
+}
+
+/* ── Little touches ─────────────────────────────────────── */
+
+@keyframes checkPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+.check-pop {
+  animation: checkPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* A line that draws itself across a checked-off item. */
+.strike {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 55%;
+  background-size: 0% 1.5px;
+  transition: background-size 0.28s ease-out, color 0.18s ease;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.strike.on {
+  background-size: 100% 1.5px;
+}
+
+@keyframes cheerIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 0.85; transform: translateY(0); }
+}
+.cheer-in {
+  animation: cheerIn 0.3s ease-out;
+}
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-5px) rotate(8deg); }
+}
+.decor-float {
+  animation: floaty 6s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes reelBlur {
+  0%, 100% { filter: blur(0); }
+  50%      { filter: blur(1.5px); }
+}
+.reel-spinning {
+  animation: reelBlur 0.15s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .check-pop, .cheer-in, .decor-float, .reel-spinning, .celebration-card { animation: none; }
+  .strike { transition: none; }
 }

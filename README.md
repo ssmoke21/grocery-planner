@@ -6,8 +6,8 @@ A mobile-friendly grocery and meal planner shared among a few friends' household
 
 ### 🛒 List (private to each household)
 - **Plan mode**: toggle staples on/off, set quantities, add items by store section
-- **Shop mode**: check items off in the store, with a progress bar
-- **New Week**: saves shopping history, clears non-staples, resets staples
+- **Shop mode**: check items off in the store, with a progress bar, cheers along the way, and confetti plus the trip time at the end
+- **New Week**: shows a recap of the week, then saves shopping history, clears non-staples, resets staples
 - **Undo** after deleting an item
 
 ### 📖 Recipes (shared)
@@ -23,6 +23,13 @@ A mobile-friendly grocery and meal planner shared among a few friends' household
 - Plan this week or next, by hand and/or with **Suggest dinners**: a seasonal mix of old favorites, regulars and new recipes that varies protein and cooking style
 - **Build grocery list** → "What do we have?" review. Ingredients are merged and grouped by section, and only what you need goes on the list.
 - Rebuilding only adds what's new, and removing a meal offers to take its items back off
+- **Surprise me** spins for a random dinner, and **Milestones** shows the planning streak and badges
+
+### ✨ Little touches
+- A greeting and seasonal decorations in the header, colorful store sections, friendly empty screens
+- "Bon appétit!" and a rating prompt when Cook mode is finished
+- Each household can pick an emoji and color (Household screen), shown to friends on shared recipes
+- Dark mode follows the phone's setting. Colors live in `src/theme.css` as variables named by role and original color (`--bg-ffffff`, `--fg-222222`); use those instead of hex codes in new code.
 
 ### 🏠 Households and 🔐 Admin
 - A household's link (`/?h=CODE`) opens it, and the device remembers it
@@ -40,12 +47,12 @@ The secret household code is the only key to a household, so it must never appea
 |---|---|
 | `households/{code}` | Name, `public_id`, `is_admin`. Can be opened by code, never listed. |
 | `households/{code}/grocery_items` | The list |
-| `households/{code}/app_state/main` | Plan vs Shop mode |
+| `households/{code}/app_state/main` | Plan vs Shop mode, and when the shopping trip started |
 | `households/{code}/app_state/list_ledger` | What each planned meal added to the list. Cleared by New Week. |
 | `households/{code}/shopping_history` | Saved by New Week |
 | `households/{code}/meal_plan` | One entry per recipe per week (`week_start` = Monday, optional `scale`). Doubles as "made it" history. |
 | `households/{adminCode}/directory` | The admin's list of all households and their codes |
-| `household_profiles/{public_id}` | Public household names |
+| `household_profiles/{public_id}` | Public household names, plus optional `emoji` and `color` |
 | `recipes` | Shared recipes: `owner_id`, `meals`, ingredients, `planned_by` and `ratings` per household |
 
 ## Code layout

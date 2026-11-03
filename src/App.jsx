@@ -6,17 +6,19 @@ import {
 } from "firebase/firestore";
 import { hCol, hDoc } from "./household.js";
 import HouseholdSheet from "./HouseholdSheet.jsx";
-import { SECTION_ORDER, SECTION_ICONS } from "./sections.js";
+import { SECTION_ORDER, SECTION_ICONS, sectionColors } from "./sections.js";
+import { greeting, cheer, buzz, weekRecap, householdLook } from "./fun.js";
+import { Confetti, SeasonalDecor } from "./Flair.jsx";
 import { useRecipeData } from "./recipes/useRecipeData.js";
 import RecipeLibrary from "./recipes/RecipeLibrary.jsx";
 import WeekPlan from "./recipes/WeekPlan.jsx";
-import { weekStart, formatWeekRange, buildUsage, usageStatus } from "./recipes/utils.js";
+import { weekStart, formatWeekRange, buildUsage, usageStatus, formatMinutes } from "./recipes/utils.js";
 import "./App.css";
 
 const FREQ_COLORS = {
-  weekly: { bg: "#E8F5E9", text: "#2E7D32" },
-  most:   { bg: "#E3F2FD", text: "#1565C0" },
-  regular:{ bg: "#FFF3E0", text: "#E65100" },
+  weekly: { bg: "var(--bg-e8f5e9)", text: "var(--fg-2e7d32)" },
+  most:   { bg: "var(--bg-e3f2fd)", text: "var(--fg-1565c0)" },
+  regular:{ bg: "var(--bg-fff3e0)", text: "var(--fg-e65100)" },
 };
 const FREQ_LABEL = { weekly: "weekly", most: "most wks", regular: "2-3 wks" };
 
@@ -54,7 +56,10 @@ export default function App({ household, onLeaveHousehold }) {
   const [toast, setToast]             = useState(null);
   const [showHousehold, setShowHousehold] = useState(false);
   const [compact, setCompact] = useState(false);
+  const [shopStartedAt, setShopStartedAt] = useState(null);
+  const [confetti, setConfetti] = useState(false);
   const toastTimer = useRef(null);
+  const wasAllDone = useRef(null);
 
   // Shrink the header to just the tabs while scrolling down the page. Different
   // thresholds stop it flickering, and short pages never shrink.
@@ -101,7 +106,10 @@ export default function App({ household, onLeaveHousehold }) {
     const stateUnsub = onSnapshot(
       hDoc(code, "app_state", "main"),
       (snap) => {
-        if (snap.exists()) setMode(snap.data().mode || "plan");
+        if (snap.exists()) {
+          setMode(snap.data().mode || "plan");
+          setShopStartedAt(snap.data().shop_started_at || null);
+        }
         loadedRef.current.state = true;
         checkLoaded();
       },
@@ -130,7 +138,10 @@ export default function App({ household, onLeaveHousehold }) {
   };
 
   const toggleSelect = (item) => updateItem(item.id, { is_selected: !item.is_selected });
-  const toggleCheck  = (item) => updateItem(item.id, { is_checked:  !item.is_checked  });
+  const toggleCheck  = (item) => {
+    if (!item.is_checked) buzz();
+    updateItem(item.id, { is_checked: !item.is_checked });
+  };
 
   const saveQty = (id) => {
     updateItem(id, { qty: qtyInput, unit: unitInput });
@@ -175,9 +186,11 @@ export default function App({ household, onLeaveHousehold }) {
       items.filter((i) => i.is_selected && i.is_checked).forEach((i) => {
         batch.update(hDoc(code, "grocery_items", i.id), { is_checked: false });
       });
-      batch.set(hDoc(code, "app_state", "main"), { mode: "shop" }, { merge: true });
+      const startedAt = Date.now();
+      batch.set(hDoc(code, "app_state", "main"), { mode: "shop", shop_started_at: startedAt }, { merge: true });
       await batch.commit();
       setMode("shop");
+      setShopStartedAt(startedAt);
     } catch (e) { console.error(e); }
   };
 
@@ -263,6 +276,26 @@ export default function App({ household, onLeaveHousehold }) {
   const plannedNextWeek = mealPlan.filter((m) => m.week_start === nextWeek).length;
   const usage = buildUsage(mealPlan);
   const favoriteCount = recipes.filter((r) => usageStatus(usage[r.id]).favorite).length;
+  const look = householdLook(profiles[household.public_id]);
+  const allDone = !isPlan && selectedItems.length > 0 && checkedItems.length === selectedItems.length;
+
+  // Confetti when the last item is checked off (not when opening a finished list).
+  useEffect(() => {
+    if (loading) { wasAllDone.current = null; return; }
+    if (wasAllDone.current === false && allDone) {
+      setConfetti(true);
+      buzz([30, 60, 30]);
+    }
+    wasAllDone.current = allDone;
+  }, [allDone, loading]);
+
+  // How long the trip took: from Start Shopping to the last item checked off.
+  const tripMinutes = (() => {
+    if (!allDone || !shopStartedAt) return null;
+    const last = Math.max(...checkedItems.map((i) => i.updatedAt?.toMillis?.() ?? Date.now()));
+    const mins = Math.round((last - shopStartedAt) / 60000);
+    return mins >= 0 && mins < 8 * 60 ? mins : null;
+  })();
 
   // ── LOADING ─────────────────────────────────────────────────
   if (loading) {
@@ -278,7 +311,7 @@ export default function App({ household, onLeaveHousehold }) {
     return (
       <div style={styles.loadingScreen}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
-        <div style={{ color: "#c44", marginBottom: 16, fontSize: 14, textAlign: "center", maxWidth: 280 }}>{error}</div>
+        <div style={{ color: "var(--fg-cc4444)", marginBottom: 16, fontSize: 14, textAlign: "center", maxWidth: 280 }}>{error}</div>
         <button onClick={() => window.location.reload()} style={styles.retryBtn}>Try again</button>
       </div>
     );
@@ -293,24 +326,25 @@ export default function App({ household, onLeaveHousehold }) {
         ...styles.header,
         ...(compact ? { padding: "8px 16px 10px" } : {}),
         background: isWeek
-          ? "linear-gradient(150deg, #173a36 0%, #2f6b63 100%)"
+          ? "linear-gradient(150deg, var(--bg-173a36) 0%, var(--bg-2f6b63) 100%)"
           : isRecipes
-          ? "linear-gradient(150deg, #4a220e 0%, #8a4a22 100%)"
+          ? "linear-gradient(150deg, var(--bg-4a220e) 0%, var(--bg-8a4a22) 100%)"
           : isPlan
-          ? "linear-gradient(150deg, #1e3a0f 0%, #3a6b1a 100%)"
-          : "linear-gradient(150deg, #112233 0%, #1e4d7a 100%)",
+          ? "linear-gradient(150deg, var(--bg-1e3a0f) 0%, var(--bg-3a6b1a) 100%)"
+          : "linear-gradient(150deg, var(--bg-112233) 0%, var(--bg-1e4d7a) 100%)",
       }}>
         <div style={styles.headerNoise} />
+        {!compact && <SeasonalDecor />}
         {!compact && (<>
         <button
           className="section-header-btn"
           onClick={() => setShowHousehold(true)}
           style={styles.householdChip}
-        >🏠 {household.name} <span style={{ fontSize: 8, opacity: 0.8 }}>▼</span></button>
+        >{look.emoji} {household.name} <span style={{ fontSize: 8, opacity: 0.8 }}>▼</span></button>
         {isWeek ? (
           <div style={styles.headerTop}>
             <div>
-              <div style={styles.headerEyebrow}>MEAL PLAN</div>
+              <div style={styles.headerEyebrow}>{greeting(household.name)}</div>
               <h1 style={styles.title}>Meal Plan</h1>
               <div style={styles.subtitle}>
                 Next week: {plannedNextWeek} meal{plannedNextWeek !== 1 ? "s" : ""} · {formatWeekRange(nextWeek)}
@@ -320,7 +354,7 @@ export default function App({ household, onLeaveHousehold }) {
         ) : isRecipes ? (
           <div style={styles.headerTop}>
             <div>
-              <div style={styles.headerEyebrow}>RECIPE LIBRARY</div>
+              <div style={styles.headerEyebrow}>{greeting(household.name)}</div>
               <h1 style={styles.title}>What's for dinner?</h1>
               <div style={styles.subtitle}>
                 {recipes.length} recipe{recipes.length !== 1 ? "s" : ""}
@@ -331,9 +365,7 @@ export default function App({ household, onLeaveHousehold }) {
         ) : (
         <div style={styles.headerTop}>
           <div>
-            <div style={styles.headerEyebrow}>
-              {isPlan ? "WEEKLY PLANNER" : "SHOPPING MODE"}
-            </div>
+            <div style={styles.headerEyebrow}>{greeting(household.name, !isPlan)}</div>
             <h1 style={styles.title}>
               {isPlan ? "Your List" : "Let's Shop"}
             </h1>
@@ -377,6 +409,9 @@ export default function App({ household, onLeaveHousehold }) {
             }} />
             <span style={styles.progressLabel}>
               {Math.round((checkedItems.length / selectedItems.length) * 100)}%
+            </span>
+            <span key={cheer(checkedItems.length, selectedItems.length)} className="cheer-in" style={styles.cheerLabel}>
+              {cheer(checkedItems.length, selectedItems.length)}
             </span>
           </div>
         )}
@@ -426,13 +461,22 @@ export default function App({ household, onLeaveHousehold }) {
       {/* ── PLAN MODE ── */}
       {isList && isPlan && (
         <div style={styles.content}>
-          <p style={styles.hint}>
-            Toggle what you need this week · tap qty to adjust · 📌 pins items as staples
-          </p>
+          {items.length === 0 ? (
+            <div style={{ ...styles.emptyState, padding: "40px 20px 10px" }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🧊</div>
+              <p style={styles.emptyTitle}>Nothing on the list — the fridge must be full!</p>
+              <p style={styles.emptyBody}>Add your first item below, or build a list from the Meal Plan tab.</p>
+            </div>
+          ) : (
+            <p style={styles.hint}>
+              Toggle what you need this week · tap qty to adjust · 📌 pins items as staples
+            </p>
+          )}
 
           {allSections.map(({ section, items: sectionItems }) => {
             const isCollapsed = collapsed[section];
             const selCount    = sectionItems.filter((i) => i.is_selected).length;
+            const sc = sectionColors(section);
             return (
               <div key={section} style={{ marginBottom: 6 }}>
                 <button
@@ -440,12 +484,12 @@ export default function App({ household, onLeaveHousehold }) {
                   onClick={() => setCollapsed((p) => ({ ...p, [section]: !p[section] }))}
                   style={styles.sectionHeader}
                 >
-                  <span style={styles.sectionTitle}>
-                    <span style={styles.sectionIcon}>{SECTION_ICONS[section] || "📦"}</span>
+                  <span style={{ ...styles.sectionTitle, color: sc.color }}>
+                    <span style={{ ...styles.sectionIcon, background: sc.bg }}>{SECTION_ICONS[section] || "📦"}</span>
                     {section}
                   </span>
                   <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    {selCount > 0 && <span style={styles.badge}>{selCount}</span>}
+                    {selCount > 0 && <span style={{ ...styles.badge, background: sc.color, color: "var(--page)" }}>{selCount}</span>}
                     <span style={{
                       ...styles.chevron,
                       transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)",
@@ -454,7 +498,7 @@ export default function App({ household, onLeaveHousehold }) {
                 </button>
 
                 {!isCollapsed && (
-                  <div className="section-card" style={styles.card}>
+                  <div className="section-card" style={{ ...styles.card, borderLeft: `4px solid ${sc.bg}` }}>
                     {sectionItems.map((item, idx) => {
                       const isOn = item.is_selected;
                       const fc   = FREQ_COLORS[item.freq];
@@ -464,15 +508,15 @@ export default function App({ household, onLeaveHousehold }) {
                           className="item-row"
                           style={{
                             ...styles.itemRow,
-                            borderBottom: idx < sectionItems.length - 1 ? "1px solid #f0efe8" : "none",
-                            background: isOn ? "#f2f9eb" : "white",
+                            borderBottom: idx < sectionItems.length - 1 ? "1px solid var(--ln-f0efe8)" : "none",
+                            background: isOn ? "var(--bg-f2f9eb)" : "var(--bg-ffffff)",
                           }}
                         >
                           <button
                             onClick={() => toggleSelect(item)}
                             style={{
                               ...styles.toggle,
-                              background: isOn ? "#4A7C24" : "#e0dfd8",
+                              background: isOn ? "var(--bg-4a7c24)" : "var(--bg-e0dfd8)",
                             }}
                           >
                             <div style={{
@@ -486,7 +530,7 @@ export default function App({ household, onLeaveHousehold }) {
 
                           <span style={{
                             flex: 1, fontSize: 14,
-                            color: isOn ? "#222" : "#aaa",
+                            color: isOn ? "var(--fg-222222)" : "var(--fg-aaaaaa)",
                             fontWeight: isOn ? 600 : 400,
                             letterSpacing: isOn ? "-0.01em" : "0",
                           }}>{item.name}</span>
@@ -615,24 +659,27 @@ export default function App({ household, onLeaveHousehold }) {
         <div style={styles.content}>
           {selectedItems.length === 0 ? (
             <div style={styles.emptyState}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
-              <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 6px" }}>Nothing selected</p>
-              <p style={{ fontSize: 13, color: "#aaa", margin: 0 }}>Switch to <strong>Plan</strong> to build your list.</p>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🛒</div>
+              <p style={styles.emptyTitle}>Your cart is on vacation</p>
+              <p style={styles.emptyBody}>Nothing's picked yet. Switch to <strong>Plan</strong> and turn on what you need.</p>
             </div>
           ) : (
             shopSections.map(({ section, items: sectionItems }) => {
-              const allDone = sectionItems.every((i) => i.is_checked);
+              const sectionDone = sectionItems.every((i) => i.is_checked);
+              const sc = sectionColors(section);
               return (
                 <div key={section} style={{ marginBottom: 8 }}>
                   <div style={styles.shopSectionLabel}>
-                    <span style={{ color: allDone ? "#bbb" : "#1B3A5C" }}>
-                      {SECTION_ICONS[section] || "📦"} {section}
+                    <span style={{ color: sectionDone ? "var(--fg-bbbbbb)" : sc.color, display: "flex", alignItems: "center", gap: 7 }}>
+                      <span style={{ ...styles.sectionIcon, background: sectionDone ? "transparent" : sc.bg }}>{SECTION_ICONS[section] || "📦"}</span>
+                      {section}
                     </span>
-                    {allDone && <span style={styles.donePill}>✓ done</span>}
+                    {sectionDone && <span className="check-pop" style={styles.donePill}>✓ done</span>}
                   </div>
                   <div style={{
                     ...styles.card,
-                    opacity: allDone ? 0.45 : 1,
+                    borderLeft: `4px solid ${sectionDone ? "var(--ln-f0efe8)" : sc.bg}`,
+                    opacity: sectionDone ? 0.45 : 1,
                     transition: "opacity 0.4s ease",
                   }}>
                     {sectionItems.map((item, idx) => {
@@ -645,35 +692,36 @@ export default function App({ household, onLeaveHousehold }) {
                           style={{
                             display: "flex", alignItems: "center",
                             padding: "15px 16px", cursor: "pointer",
-                            borderBottom: idx < sectionItems.length - 1 ? "1px solid #f0efe8" : "none",
-                            background: isDone ? "#f8f8f4" : "white",
+                            borderBottom: idx < sectionItems.length - 1 ? "1px solid var(--ln-f0efe8)" : "none",
+                            background: isDone ? "var(--bg-f8f8f4)" : "var(--bg-ffffff)",
                           }}
                         >
-                          <div style={{
+                          <div className={isDone ? "check-pop" : ""} style={{
                             width: 26, height: 26, borderRadius: 8, flexShrink: 0,
-                            border: isDone ? "2px solid #2E6EA6" : "2px solid #d8d7d0",
-                            background: isDone ? "#2E6EA6" : "white",
+                            border: isDone ? "2px solid var(--ln-2e6ea6)" : "2px solid var(--ln-d8d7d0)",
+                            background: isDone ? "var(--bg-2e6ea6)" : "var(--bg-ffffff)",
                             display: "flex", alignItems: "center", justifyContent: "center",
                             marginRight: 14,
                             transition: "background 0.18s ease, border-color 0.18s ease",
                           }}>
                             {isDone && (
                               <svg width="13" height="10" viewBox="0 0 13 10" fill="none">
-                                <path d="M1 5L4.5 8.5L12 1" stroke="white" strokeWidth="2.2"
+                                <path d="M1 5L4.5 8.5L12 1" stroke="var(--fg-ffffff)" strokeWidth="2.2"
                                   strokeLinecap="round" strokeLinejoin="round" />
                               </svg>
                             )}
                           </div>
-                          <span style={{
-                            flex: 1, fontSize: 16,
-                            color: isDone ? "#ccc" : "#1a1a1a",
-                            textDecoration: isDone ? "line-through" : "none",
-                            fontWeight: isDone ? 400 : 500,
-                            transition: "color 0.18s ease",
-                          }}>{item.name}</span>
+                          <span style={{ flex: 1, minWidth: 0 }}>
+                            <span className={`strike${isDone ? " on" : ""}`} style={{
+                              fontSize: 16,
+                              color: isDone ? "var(--fg-cccccc)" : "var(--fg-1a1a1a)",
+                              fontWeight: isDone ? 400 : 500,
+                              transition: "color 0.18s ease",
+                            }}>{item.name}</span>
+                          </span>
                           {(item.qty || item.unit) && (
                             <span style={{
-                              fontSize: 13, color: isDone ? "#ccc" : "#888",
+                              fontSize: 13, color: isDone ? "var(--fg-cccccc)" : "var(--fg-888888)",
                               fontWeight: 600, whiteSpace: "nowrap",
                             }}>{item.qty} {item.unit}</span>
                           )}
@@ -686,13 +734,17 @@ export default function App({ household, onLeaveHousehold }) {
             })
           )}
 
-          {checkedItems.length === selectedItems.length && selectedItems.length > 0 && (
+          {allDone && (
             <div className="celebration-card" style={styles.celebration}>
               <div style={{ fontSize: 44, marginBottom: 10 }}>🎉</div>
-              <p style={{ fontSize: 19, fontWeight: 700, color: "#2D5016", margin: "0 0 4px", fontFamily: "'Fraunces', serif" }}>
-                All done!
+              <p style={{ fontSize: 19, fontWeight: 700, color: "var(--fg-2d5016)", margin: "0 0 4px", fontFamily: "'Fraunces', serif" }}>
+                Shopping done!
               </p>
-              <p style={{ fontSize: 13, color: "#666", margin: 0 }}>Great shopping trip.</p>
+              <p style={{ fontSize: 13, color: "var(--fg-666666)", margin: 0 }}>
+                {tripMinutes === null
+                  ? "Great shopping trip."
+                  : `All ${selectedItems.length} item${selectedItems.length !== 1 ? "s" : ""} in ${tripMinutes < 1 ? "under a minute" : formatMinutes(tripMinutes)}. Great trip!`}
+              </p>
             </div>
           )}
         </div>
@@ -711,8 +763,8 @@ export default function App({ household, onLeaveHousehold }) {
               style={{
                 ...styles.primaryBtn,
                 background: selectedItems.length > 0
-                  ? "linear-gradient(135deg, #1B3A5C 0%, #2E6EA6 100%)"
-                  : "#d4d3cc",
+                  ? "linear-gradient(135deg, var(--bg-1b3a5c) 0%, var(--bg-2e6ea6) 100%)"
+                  : "var(--bg-d4d3cc)",
                 cursor: selectedItems.length > 0 ? "pointer" : "default",
               }}
             >Start Shopping →</button>
@@ -734,7 +786,7 @@ export default function App({ household, onLeaveHousehold }) {
                   showToast("Copied to clipboard!");
                 }
               }}
-              style={{ ...styles.primaryBtn, background: "#1B3A5C", flex: 1 }}
+              style={{ ...styles.primaryBtn, background: "var(--bg-1b3a5c)", flex: 1 }}
             >Copy Remaining</button>
           </>
         )}
@@ -744,7 +796,29 @@ export default function App({ household, onLeaveHousehold }) {
       {showConfirm && (
         <div className="overlay-anim" style={styles.overlay} onClick={() => setShowConfirm(false)}>
           <div className="modal-anim" style={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontSize: 36, marginBottom: 10 }}>🔄</div>
+            {(() => {
+              const r = weekRecap({ mealPlan, items });
+              const stats = [
+                r.meals && { n: r.meals, label: `meal${r.meals !== 1 ? "s" : ""} cooked` },
+                r.newRecipes && { n: r.newRecipes, label: `new recipe${r.newRecipes !== 1 ? "s" : ""} tried` },
+                r.bought && { n: r.bought, label: `item${r.bought !== 1 ? "s" : ""} bought` },
+                r.streak >= 2 && { n: `🔥${r.streak}`, label: "weeks in a row" },
+              ].filter(Boolean);
+              return stats.length ? (
+                <div style={styles.recap}>
+                  <div style={{ fontSize: 32, marginBottom: 4 }}>🥇</div>
+                  <div style={styles.recapTitle}>What a week!</div>
+                  <div style={styles.recapGrid}>
+                    {stats.map((s) => (
+                      <div key={s.label} style={styles.recapStat}>
+                        <div style={styles.recapNum}>{s.n}</div>
+                        <div style={styles.recapLabel}>{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : <div style={{ fontSize: 36, marginBottom: 10 }}>🔄</div>;
+            })()}
             <h3 style={styles.modalTitle}>Start a new week?</h3>
             <p style={styles.modalBody}>
               Your shopping data will be saved, then all selections cleared. Staple items stay.
@@ -760,11 +834,14 @@ export default function App({ household, onLeaveHousehold }) {
       {showHousehold && (
         <HouseholdSheet
           household={household}
+          profile={profiles[household.public_id]}
           onClose={() => setShowHousehold(false)}
           onLeave={onLeaveHousehold}
           showToast={showToast}
         />
       )}
+
+      {confetti && <Confetti onDone={() => setConfetti(false)} />}
 
       {/* ── TOAST ── */}
       {toast && (
@@ -781,21 +858,21 @@ const styles = {
   container: {
     fontFamily: "'DM Sans', sans-serif",
     maxWidth: 500, margin: "0 auto",
-    background: "#F7F6F1", minHeight: "100vh", paddingBottom: 96,
+    background: "var(--bg-f7f6f1)", minHeight: "100vh", paddingBottom: 96,
   },
   loadingScreen: {
     display: "flex", flexDirection: "column",
     justifyContent: "center", alignItems: "center",
-    height: "100vh", fontFamily: "'DM Sans', sans-serif", background: "#F7F6F1",
+    height: "100vh", fontFamily: "'DM Sans', sans-serif", background: "var(--bg-f7f6f1)",
   },
-  loadingText: { color: "#aaa", fontSize: 14, letterSpacing: "0.02em" },
+  loadingText: { color: "var(--fg-aaaaaa)", fontSize: 14, letterSpacing: "0.02em" },
   retryBtn: {
     padding: "11px 28px", borderRadius: 10, border: "none",
-    background: "#2D5016", color: "white", fontSize: 14,
+    background: "var(--bg-2d5016)", color: "var(--fg-ffffff)", fontSize: 14,
     cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600,
   },
   header: {
-    padding: "12px 20px 20px", color: "white",
+    padding: "12px 20px 20px", color: "var(--fg-ffffff)",
     position: "sticky", top: 0, zIndex: 100, overflow: "hidden",
   },
   headerNoise: {
@@ -806,16 +883,16 @@ const styles = {
   householdChip: {
     position: "relative", display: "inline-flex", alignItems: "center", gap: 5,
     margin: "0 0 8px -8px", padding: "4px 8px", borderRadius: 10, border: "none",
-    background: "transparent", color: "white", opacity: 0.75,
+    background: "transparent", color: "var(--fg-ffffff)", opacity: 0.75,
     fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
   },
   otherSectionsLabel: {
-    fontSize: 11, fontWeight: 700, color: "#a0998a", letterSpacing: "0.06em",
+    fontSize: 11, fontWeight: 700, color: "var(--fg-a0998a)", letterSpacing: "0.06em",
     textTransform: "uppercase", margin: "0 2px 8px",
   },
   sectionChip: {
-    padding: "9px 12px", borderRadius: 18, border: "1.5px dashed #cfcdc2",
-    background: "transparent", color: "#6b6658", fontSize: 13, fontWeight: 600,
+    padding: "9px 12px", borderRadius: 18, border: "1.5px dashed var(--ln-cfcdc2)",
+    background: "transparent", color: "var(--fg-6b6658)", fontSize: 13, fontWeight: 600,
     cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
   },
   headerTop: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", position: "relative" },
@@ -828,7 +905,7 @@ const styles = {
   modePills: { display: "flex", background: "rgba(0,0,0,0.2)", borderRadius: 22, padding: 3, gap: 2 },
   modePill: {
     padding: "7px 16px", borderRadius: 19, border: "none",
-    color: "white", fontSize: 12, cursor: "pointer",
+    color: "var(--fg-ffffff)", fontSize: 12, cursor: "pointer",
     fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.01em",
   },
   tabBar: {
@@ -837,12 +914,12 @@ const styles = {
   },
   tabBtn: {
     flex: 1, padding: "10px 0", borderRadius: 9, border: "none",
-    color: "white", fontSize: 14, cursor: "pointer",
+    color: "var(--fg-ffffff)", fontSize: 14, cursor: "pointer",
     fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.01em",
   },
   progressBg: {
     height: 7, background: "rgba(255,255,255,0.15)", borderRadius: 4,
-    overflow: "hidden", marginTop: 18, position: "relative",
+    marginTop: 22, position: "relative",
   },
   progressFill: {
     height: "100%", background: "rgba(255,255,255,0.8)", borderRadius: 4,
@@ -850,25 +927,40 @@ const styles = {
   },
   progressLabel: { position: "absolute", right: 0, top: -18, fontSize: 11, fontWeight: 700, opacity: 0.7 },
   content: { padding: "10px 16px" },
-  hint: { fontSize: 12, color: "#a0998a", margin: "6px 0 14px", lineHeight: 1.6, letterSpacing: "0.01em" },
+  hint: { fontSize: 12, color: "var(--fg-a0998a)", margin: "6px 0 14px", lineHeight: 1.6, letterSpacing: "0.01em" },
   sectionHeader: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
     width: "100%", padding: "12px 2px 8px", border: "none",
     background: "transparent", cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
   },
   sectionTitle: {
-    fontSize: 13, fontWeight: 700, color: "#3a5c1a",
+    fontSize: 13, fontWeight: 700, color: "var(--fg-3a5c1a)",
     letterSpacing: "0.04em", textTransform: "uppercase",
     display: "flex", alignItems: "center", gap: 7,
   },
-  sectionIcon: { fontSize: 16 },
+  sectionIcon: {
+    fontSize: 15, width: 26, height: 26, borderRadius: 8,
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+  },
+  cheerLabel: { position: "absolute", left: 0, top: -18, fontSize: 11, fontWeight: 700, opacity: 0.85 },
+  emptyTitle: { fontSize: 15, fontWeight: 600, margin: "0 0 6px", color: "var(--fg-555555)" },
+  emptyBody: { fontSize: 13, color: "var(--fg-aaaaaa)", margin: 0, lineHeight: 1.5 },
+  recap: {
+    margin: "-6px -4px 18px", padding: "14px 12px", borderRadius: 14,
+    background: "linear-gradient(135deg, var(--bg-fff6dd) 0%, var(--bg-fbebdd) 100%)",
+  },
+  recapTitle: { fontFamily: "'Fraunces', serif", fontStyle: "italic", fontSize: 17, color: "var(--fg-6b5310)", marginBottom: 10 },
+  recapGrid: { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8 },
+  recapStat: { minWidth: 76, padding: "8px 6px", borderRadius: 10, background: "var(--bg-ffffff)" },
+  recapNum: { fontSize: 20, fontWeight: 700, color: "var(--fg-9a5a1f)", lineHeight: 1.1 },
+  recapLabel: { fontSize: 11, color: "var(--fg-8a8478)", fontWeight: 600, marginTop: 2 },
   badge: {
-    fontSize: 11, background: "#4A7C24", color: "white",
+    fontSize: 11, background: "var(--bg-4a7c24)", color: "var(--fg-ffffff)",
     borderRadius: 12, padding: "2px 9px", fontWeight: 700, letterSpacing: "0.02em",
   },
-  chevron: { fontSize: 9, color: "#bbb", transition: "transform 0.22s ease", display: "inline-block" },
+  chevron: { fontSize: 9, color: "var(--fg-bbbbbb)", transition: "transform 0.22s ease", display: "inline-block" },
   card: {
-    background: "white", borderRadius: 14, overflow: "hidden",
+    background: "var(--bg-ffffff)", borderRadius: 14, overflow: "hidden",
     boxShadow: "0 2px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)",
   },
   itemRow: { display: "flex", alignItems: "center", padding: "6px 8px 6px 14px" },
@@ -884,67 +976,67 @@ const styles = {
   },
   qtyEditor: { display: "flex", alignItems: "center", gap: 4 },
   qtyInputSmall: {
-    width: 34, border: "1px solid #ddd", borderRadius: 7,
+    width: 34, border: "1px solid var(--ln-dddddd)", borderRadius: 7,
     padding: "4px 6px", fontSize: 13, textAlign: "center",
     fontFamily: "'DM Sans', sans-serif", outline: "none",
   },
   unitInputSmall: {
-    width: 52, border: "1px solid #ddd", borderRadius: 7,
+    width: 52, border: "1px solid var(--ln-dddddd)", borderRadius: 7,
     padding: "4px 6px", fontSize: 13, fontFamily: "'DM Sans', sans-serif", outline: "none",
   },
   qtyConfirm: {
-    background: "#4A7C24", color: "white", border: "none",
+    background: "var(--bg-4a7c24)", color: "var(--fg-ffffff)", border: "none",
     borderRadius: 7, padding: "5px 9px", fontSize: 12,
     cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontWeight: 600,
   },
   qtyPill: {
-    background: "#f0efe8", border: "1px solid #e4e2d8", borderRadius: 8,
-    padding: "9px 12px", fontSize: 13, color: "#666", cursor: "pointer",
+    background: "var(--bg-f0efe8)", border: "1px solid var(--ln-e4e2d8)", borderRadius: 8,
+    padding: "9px 12px", fontSize: 13, color: "var(--fg-666666)", cursor: "pointer",
     fontFamily: "'DM Sans', sans-serif", fontWeight: 600, whiteSpace: "nowrap",
   },
   stapleBtn: { width: 40, height: 40, flexShrink: 0, background: "none", border: "none", fontSize: 16, cursor: "pointer", padding: 0, lineHeight: 1 },
   deleteBtn: { width: 40, height: 40, flexShrink: 0, marginLeft: 4, background: "none", border: "none", fontSize: 15, cursor: "pointer", padding: 0, lineHeight: 1, opacity: 0.55 },
   undoBtn: {
     marginLeft: 14, padding: "6px 10px", border: "none", borderRadius: 8, background: "rgba(255,255,255,0.16)",
-    color: "#ffd66b", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+    color: "var(--fg-ffd66b)", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
   },
-  addRow: { display: "flex", padding: "8px 14px", gap: 6, borderTop: "1px solid #f0efe8" },
+  addRow: { display: "flex", padding: "8px 14px", gap: 6, borderTop: "1px solid var(--ln-f0efe8)" },
   addInput: {
-    flex: 1, border: "1px solid #e4e2d8", borderRadius: 8,
+    flex: 1, border: "1px solid var(--ln-e4e2d8)", borderRadius: 8,
     padding: "8px 10px", fontSize: 13, fontFamily: "'DM Sans', sans-serif",
-    outline: "none", background: "#fafaf7",
+    outline: "none", background: "var(--bg-fafaf7)",
   },
   addBtn: {
-    background: "#4A7C24", color: "white", border: "none",
+    background: "var(--bg-4a7c24)", color: "var(--fg-ffffff)", border: "none",
     borderRadius: 8, padding: "8px 14px", fontSize: 12,
     fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
   },
   cancelBtn: {
-    background: "#eeecea", color: "#888", border: "none",
+    background: "var(--bg-eeecea)", color: "var(--fg-888888)", border: "none",
     borderRadius: 8, padding: "8px 10px", fontSize: 12,
     cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
   },
   addTrigger: {
     width: "100%", padding: "11px 14px", border: "none",
-    borderTop: "1px solid #f0efe8", background: "transparent",
-    color: "#4A7C24", fontSize: 12, fontWeight: 700,
+    borderTop: "1px solid var(--ln-f0efe8)", background: "transparent",
+    color: "var(--fg-4a7c24)", fontSize: 12, fontWeight: 700,
     cursor: "pointer", textAlign: "left", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.02em",
   },
   shopSectionLabel: {
     padding: "14px 4px 6px", display: "flex", alignItems: "center", justifyContent: "space-between",
-    fontSize: 13, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "#1B3A5C",
+    fontSize: 13, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--fg-1b3a5c)",
   },
-  donePill: { fontSize: 11, background: "#e8f5e9", color: "#2E7D32", borderRadius: 10, padding: "2px 9px", fontWeight: 700 },
-  emptyState: { textAlign: "center", padding: "70px 20px", color: "#aaa" },
+  donePill: { fontSize: 11, background: "var(--bg-e8f5e9)", color: "var(--fg-2e7d32)", borderRadius: 10, padding: "2px 9px", fontWeight: 700 },
+  emptyState: { textAlign: "center", padding: "70px 20px", color: "var(--fg-aaaaaa)" },
   celebration: {
     textAlign: "center", padding: "36px 20px",
-    background: "linear-gradient(135deg, #f0fae8 0%, #d4edbc 100%)",
+    background: "linear-gradient(135deg, var(--bg-f0fae8) 0%, var(--bg-d4edbc) 100%)",
     borderRadius: 18, margin: "20px 0",
     boxShadow: "0 4px 20px rgba(45,80,22,0.10)",
   },
   bottomBar: {
     position: "fixed", bottom: 0, left: 0, right: 0,
-    background: "rgba(247,246,241,0.92)",
+    background: "var(--bar)",
     backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
     borderTop: "1px solid rgba(0,0,0,0.07)",
     padding: "10px 16px 16px", display: "flex", gap: 10, justifyContent: "center",
@@ -953,13 +1045,13 @@ const styles = {
   },
   secondaryBtn: {
     flex: 1, padding: "13px", borderRadius: 12,
-    border: "1.5px solid #e0dfd8", background: "white",
-    color: "#888", fontSize: 13, fontWeight: 600,
+    border: "1.5px solid var(--ln-e0dfd8)", background: "var(--bg-ffffff)",
+    color: "var(--fg-888888)", fontSize: 13, fontWeight: 600,
     cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
   },
   primaryBtn: {
     flex: 2, padding: "13px", borderRadius: 12, border: "none",
-    color: "white", fontSize: 14, fontWeight: 700,
+    color: "var(--fg-ffffff)", fontSize: 14, fontWeight: 700,
     cursor: "pointer", fontFamily: "'DM Sans', sans-serif", letterSpacing: "0.01em",
   },
   overlay: {
@@ -967,29 +1059,29 @@ const styles = {
     display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 20,
   },
   modal: {
-    background: "white", borderRadius: 20, padding: "28px 24px",
+    background: "var(--bg-ffffff)", borderRadius: 20, padding: "28px 24px",
     maxWidth: 320, width: "100%", textAlign: "center",
     boxShadow: "0 24px 60px rgba(0,0,0,0.18)",
   },
   modalTitle: {
     margin: "0 0 10px", fontSize: 18,
-    fontFamily: "'Fraunces', serif", fontWeight: 500, fontStyle: "italic", color: "#1a1a1a",
+    fontFamily: "'Fraunces', serif", fontWeight: 500, fontStyle: "italic", color: "var(--fg-1a1a1a)",
   },
-  modalBody: { fontSize: 13, color: "#888", margin: "0 0 22px", lineHeight: 1.6 },
+  modalBody: { fontSize: 13, color: "var(--fg-888888)", margin: "0 0 22px", lineHeight: 1.6 },
   modalCancel: {
     flex: 1, padding: "12px", borderRadius: 10,
-    border: "1.5px solid #e0dfd8", background: "white",
-    color: "#888", fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+    border: "1.5px solid var(--ln-e0dfd8)", background: "var(--bg-ffffff)",
+    color: "var(--fg-888888)", fontSize: 14, cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
   },
   modalConfirm: {
     flex: 1, padding: "12px", borderRadius: 10, border: "none",
-    background: "linear-gradient(135deg, #2D5016, #4A7C24)",
-    color: "white", fontSize: 14, fontWeight: 700,
+    background: "linear-gradient(135deg, var(--bg-2d5016), var(--bg-4a7c24))",
+    color: "var(--fg-ffffff)", fontSize: 14, fontWeight: 700,
     cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
   },
   toast: {
     position: "fixed", bottom: 108, left: "50%", transform: "translateX(-50%)",
-    background: "#1a1a1a", color: "white", padding: "11px 22px", borderRadius: 12,
+    background: "var(--bg-1a1a1a)", color: "var(--fg-ffffff)", padding: "11px 22px", borderRadius: 12,
     fontSize: 13, fontWeight: 500, zIndex: 300, fontFamily: "'DM Sans', sans-serif",
     boxShadow: "0 8px 24px rgba(0,0,0,0.25)", whiteSpace: "nowrap",
   },

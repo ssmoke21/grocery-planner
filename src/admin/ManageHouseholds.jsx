@@ -5,7 +5,7 @@ import { copyText } from "../HouseholdSheet.jsx";
 import { directoryCol, renameHousehold, deleteHousehold, recipesOwnedBy } from "./householdAdmin.js";
 import { ui, font, useBodyScrollLock, useBackToClose } from "../recipes/ui.js";
 
-const SLATE = "#3d4a5c";
+const SLATE = "var(--ac-3d4a5c)";
 
 const createdLabel = (ts) =>
   ts?.toDate
@@ -128,7 +128,7 @@ export default function ManageHouseholds({ household, showToast, onClose }) {
         {/* ── List ── */}
         <div style={ui.sectionLabel}>All households{entries ? ` (${entries.length})` : ""}</div>
         {entries === null ? (
-          <p style={{ color: "#aaa", fontSize: 14 }}>Loading…</p>
+          <p style={{ color: "var(--fg-aaaaaa)", fontSize: 14 }}>Loading…</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {entries.map((e) => {
@@ -152,7 +152,7 @@ export default function ManageHouseholds({ household, showToast, onClose }) {
                     <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                       <span style={styles.name}>{e.name}</span>
                       {e.is_admin && <span style={styles.badge}>Admin</span>}
-                      {isSelf && <span style={{ ...styles.badge, background: "#E8F5E9", color: "#2E7D32" }}>You</span>}
+                      {isSelf && <span style={{ ...styles.badge, background: "var(--bg-e8f5e9)", color: "var(--fg-2e7d32)" }}>You</span>}
                     </div>
                   )}
                   <div style={styles.meta}>Created {createdLabel(e.createdAt)}</div>
@@ -163,7 +163,7 @@ export default function ManageHouseholds({ household, showToast, onClose }) {
                       <button onClick={() => setRenaming({ code: e.code, value: e.name })} style={styles.lightBtn}>Rename</button>
                     )}
                     {!isSelf && !e.is_admin && (
-                      <button onClick={() => startDelete(e)} style={{ ...styles.lightBtn, color: "#b3261e" }}>Delete</button>
+                      <button onClick={() => startDelete(e)} style={{ ...styles.lightBtn, color: "var(--fg-b3261e)" }}>Delete</button>
                     )}
                   </div>
                 </div>
@@ -185,7 +185,7 @@ export default function ManageHouseholds({ household, showToast, onClose }) {
               <p style={styles.modalBody}>Checking their recipes…</p>
             ) : deleting.recipeCount > 0 && (
               <div style={{ textAlign: "left", marginBottom: 18 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#444", marginBottom: 6 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--fg-444444)", marginBottom: 6 }}>
                   They shared {deleting.recipeCount} recipe{deleting.recipeCount !== 1 ? "s" : ""}:
                 </div>
                 {[["keep", `Keep them (they become ${household.name}'s)`], ["delete", "Delete them too"]].map(([val, label]) => (
@@ -215,51 +215,51 @@ export default function ManageHouseholds({ household, showToast, onClose }) {
 }
 
 const styles = {
-  name: { fontSize: 16, fontWeight: 700, color: "#222" },
+  name: { fontSize: 16, fontWeight: 700, color: "var(--fg-222222)" },
   badge: {
     fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10,
-    background: "#E3E8F0", color: SLATE, textTransform: "uppercase", letterSpacing: "0.04em",
+    background: "var(--bg-e3e8f0)", color: SLATE, textTransform: "uppercase", letterSpacing: "0.04em",
   },
-  meta: { fontSize: 12, color: "#a0998a", marginTop: 3 },
+  meta: { fontSize: 12, color: "var(--fg-a0998a)", marginTop: 3 },
   link: {
-    marginTop: 8, fontFamily: "ui-monospace, Menlo, monospace", fontSize: 12, color: "#555",
-    background: "#f6f5f0", borderRadius: 8, padding: "8px 10px", wordBreak: "break-all", userSelect: "all",
+    marginTop: 8, fontFamily: "ui-monospace, Menlo, monospace", fontSize: 12, color: "var(--fg-555555)",
+    background: "var(--bg-f6f5f0)", borderRadius: 8, padding: "8px 10px", wordBreak: "break-all", userSelect: "all",
   },
   darkBtn: {
     padding: "10px 16px", borderRadius: 10, border: "none", background: SLATE,
-    color: "white", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: font, whiteSpace: "nowrap",
+    color: "var(--fg-ffffff)", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: font, whiteSpace: "nowrap",
   },
   lightBtn: {
-    padding: "10px 14px", borderRadius: 10, border: "1.5px solid #e0dfd8", background: "white",
-    color: "#666", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font, whiteSpace: "nowrap",
+    padding: "10px 14px", borderRadius: 10, border: "1.5px solid var(--ln-e0dfd8)", background: "var(--bg-ffffff)",
+    color: "var(--fg-666666)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: font, whiteSpace: "nowrap",
   },
   createdBox: {
-    marginTop: 12, padding: 12, borderRadius: 12, background: "#EEF3EA",
-    fontSize: 13, color: "#2D5016", lineHeight: 1.45,
+    marginTop: 12, padding: 12, borderRadius: 12, background: "var(--bg-eef3ea)",
+    fontSize: 13, color: "var(--fg-2d5016)", lineHeight: 1.45,
   },
   overlay: {
     position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
     display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 20,
   },
   modal: {
-    background: "white", borderRadius: 20, padding: "28px 22px",
+    background: "var(--bg-ffffff)", borderRadius: 20, padding: "28px 22px",
     maxWidth: 340, width: "100%", boxSizing: "border-box", textAlign: "center",
     boxShadow: "0 24px 60px rgba(0,0,0,0.18)", fontFamily: font,
   },
   modalTitle: {
     margin: "0 0 10px", fontSize: 18,
-    fontFamily: "'Fraunces', serif", fontWeight: 500, fontStyle: "italic", color: "#1a1a1a",
+    fontFamily: "'Fraunces', serif", fontWeight: 500, fontStyle: "italic", color: "var(--fg-1a1a1a)",
   },
-  modalBody: { fontSize: 13, color: "#888", margin: "0 0 16px", lineHeight: 1.6 },
-  radio: { display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "#333", padding: "7px 0" },
+  modalBody: { fontSize: 13, color: "var(--fg-888888)", margin: "0 0 16px", lineHeight: 1.6 },
+  radio: { display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "var(--fg-333333)", padding: "7px 0" },
   modalCancel: {
     flex: 1, padding: "12px", borderRadius: 10,
-    border: "1.5px solid #e0dfd8", background: "white",
-    color: "#888", fontSize: 14, cursor: "pointer", fontFamily: font,
+    border: "1.5px solid var(--ln-e0dfd8)", background: "var(--bg-ffffff)",
+    color: "var(--fg-888888)", fontSize: 14, cursor: "pointer", fontFamily: font,
   },
   modalConfirm: {
     flex: 1, padding: "12px", borderRadius: 10, border: "none",
-    background: "#b3261e", color: "white", fontSize: 14, fontWeight: 700,
+    background: "var(--bg-b3261e)", color: "var(--fg-ffffff)", fontSize: 14, fontWeight: 700,
     cursor: "pointer", fontFamily: font,
   },
 };

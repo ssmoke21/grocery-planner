@@ -1,5 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { formatQty } from "./utils.js";
+import { rateRecipe } from "./recipeApi.js";
+import { buzz } from "../fun.js";
+import { Confetti } from "../Flair.jsx";
 import { font, useBodyScrollLock, useBackToClose } from "./ui.js";
 
 const splitSteps = (text) =>
@@ -32,7 +35,7 @@ function useKeepScreenOn() {
   return on;
 }
 
-export default function CookMode({ recipe, scale = 1, onClose }) {
+export default function CookMode({ recipe, scale = 1, myId, onClose }) {
   useBodyScrollLock();
   useBackToClose(onClose);
   const screenOn = useKeepScreenOn();
@@ -46,6 +49,20 @@ export default function CookMode({ recipe, scale = 1, onClose }) {
 
   const ingredients = recipe.ingredients || [];
   const steps = splitSteps(recipe.instructions);
+
+  // "Bon appétit!" once the last step is tapped off (or the last ingredient,
+  // for recipes without steps).
+  const finishIds = steps.length ? steps.map((_, i) => `s${i}`) : ingredients.map((_, i) => `i${i}`);
+  const allDone = finishIds.length > 0 && finishIds.every((id) => done.has(id));
+  const [finished, setFinished] = useState(false);
+  const wasDone = useRef(false);
+  useEffect(() => {
+    if (allDone && !wasDone.current) { setFinished(true); buzz([30, 60, 30]); }
+    wasDone.current = allDone;
+  }, [allDone]);
+
+  const myRating = myId ? recipe.ratings?.[myId] : null;
+  const rate = (n) => rateRecipe(recipe.id, myId, n === myRating ? null : n).catch(console.error);
 
   const Row = ({ id, label, amount }) => {
     const isDone = done.has(id);
@@ -85,6 +102,36 @@ export default function CookMode({ recipe, scale = 1, onClose }) {
       {!ingredients.length && !steps.length && (
         <p style={styles.scaled}>This recipe doesn't have ingredients or steps saved yet.</p>
       )}
+
+      {finished && (
+        <>
+          <Confetti />
+          <div className="overlay-anim" style={styles.overlay} onClick={() => setFinished(false)}>
+            <div className="modal-anim" style={styles.finish} onClick={(e) => e.stopPropagation()}>
+              <div style={{ fontSize: 48, marginBottom: 6 }}>🍽️</div>
+              <div style={styles.finishTitle}>Bon appétit!</div>
+              <p style={styles.finishBody}>{recipe.name} is ready. Enjoy!</p>
+              {myId && (
+                <>
+                  <p style={{ ...styles.finishBody, marginBottom: 2 }}>{myRating ? "Your rating" : "How was it?"}</p>
+                  <div>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        onClick={() => rate(n)}
+                        aria-label={`Rate ${n} star${n !== 1 ? "s" : ""}`}
+                        style={{ ...styles.star, color: n <= (myRating || 0) ? "#f4c542" : "#4a5a53" }}
+                      >★</button>
+                    ))}
+                  </div>
+                </>
+              )}
+              <button onClick={onClose} style={styles.finishBtn}>Done cooking</button>
+              <button onClick={() => setFinished(false)} style={styles.finishLink}>Back to the recipe</button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -117,4 +164,23 @@ const styles = {
     display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: "#16211d", fontWeight: 700,
   },
   amount: { flexShrink: 0, color: "#c9d6cf", fontWeight: 600, fontSize: 18, marginTop: 1 },
+  overlay: {
+    position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 295,
+    display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+  },
+  finish: {
+    width: "100%", maxWidth: 320, padding: "26px 22px 16px", borderRadius: 20, textAlign: "center",
+    background: "#1f2d28", border: "1px solid #2c3a35", boxShadow: "0 24px 60px rgba(0,0,0,0.4)",
+  },
+  finishTitle: { fontFamily: "'Fraunces', serif", fontStyle: "italic", fontSize: 28, color: "#f3f1e8" },
+  finishBody: { fontSize: 15, color: "#a9b8b0", margin: "6px 0 10px" },
+  star: { width: 42, height: 46, padding: 0, border: "none", background: "transparent", fontSize: 32, lineHeight: 1, cursor: "pointer" },
+  finishBtn: {
+    display: "block", width: "100%", marginTop: 14, padding: "14px", borderRadius: 12, border: "none",
+    background: "#7fc08a", color: "#16211d", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: font,
+  },
+  finishLink: {
+    display: "block", width: "100%", marginTop: 6, padding: "12px", border: "none", background: "transparent",
+    color: "#a9b8b0", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: font,
+  },
 };

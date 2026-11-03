@@ -134,11 +134,11 @@ export const unitKey = (unit) => {
 };
 
 // Other households that have made a recipe, most-made first:
-// [{ id, name, count, last }]. Reads the public recipe.planned_by summary.
+// [{ id, name, profile, count, last }]. Reads the public recipe.planned_by summary.
 export const othersWhoMade = (recipe, myId, profiles) =>
   Object.entries(recipe.planned_by || {})
     .filter(([id, v]) => id !== myId && profiles[id] && v?.count > 0)
-    .map(([id, v]) => ({ id, name: profiles[id].name, count: v.count, last: v.last }))
+    .map(([id, v]) => ({ id, name: profiles[id].name, profile: profiles[id], count: v.count, last: v.last }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
 // "The Lees" / "The Lees & The Parks" / "The Lees, The Parks +2"
